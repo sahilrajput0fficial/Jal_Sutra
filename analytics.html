@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<link crossorigin="" href="https://fonts.gstatic.com/" rel="preconnect"/>
+<link as="style" href="https://fonts.googleapis.com/css2?display=swap&family=Noto+Sans%3Awght%40400%3B500%3B700%3B900&family=Space+Grotesk%3Awght%40400%3B500%3B700" onload="this.rel='stylesheet'" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
+<title>JAL Sutra - Water Quality Monitoring</title>
+<link href="data:image/x-icon;base64," rel="icon" type="image/x-icon"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<style type="text/tailwindcss">
+      :root {
+        --primary-color: #1193d4;
+        --teal-color: #008080;
+        --navy-color: #000080;
+        --accent-color: #00f5d4;
+        --background-color: #111618;
+      }
+      body {
+        background-color: var(--background-color);
+      }
+      .glassmorphism {
+        background: rgba(28, 35, 39, 0.5);
+        -webkit-backdrop-filter: blur(10px);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(40, 51, 57, 0.3);
+      }
+      .nav-item.active {
+        color: var(--accent-color);
+        text-shadow: 0 0 8px rgba(0, 245, 212, 0.5);
+      }
+    </style>
+</head>
+<body class="bg-[var(--background-color)] text-white">
+<div class="relative flex h-auto min-h-screen w-full flex-col dark group/design-root overflow-x-hidden">
+<div class="layout-container flex h-full grow flex-col">
+<header class="sticky top-0 z-50 flex items-center justify-between whitespace-nowrap border-b border-solid border-b-[#283339] px-10 py-4 glassmorphism">
+<a href="home.html" class="flex items-center gap-3 text-white">
+<svg class="h-8 w-8 text-[var(--primary-color)]" fill="none" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+<path d="M24 4C25.7818 14.2173 33.7827 22.2182 44 24C33.7827 25.7818 25.7818 33.7827 24 44C22.2182 33.7827 14.2173 25.7818 4 24C14.2173 22.2182 22.2182 14.2173 24 4Z" fill="currentColor"></path>
+</svg>
+<h1 class="text-white text-2xl font-bold tracking-[-0.015em]">JAL Sutra</h1>
+</a>
+<nav class="flex items-center gap-8">
+<a href="map.html" class="nav-item text-gray-300 hover:text-white transition-colors duration-300 text-base font-medium">Map</a>
+<a href="analytics.html" class="nav-item text-gray-300 hover:text-white transition-colors duration-300 text-base font-medium">Analytics</a>
+<a href="calculate index.html" class="nav-item text-gray-300 hover:text-white transition-colors duration-300 text-base font-medium">Calculate Index</a>
+<a href="login.html" class="nav-item text-gray-300 hover:text-white transition-colors duration-300 text-base font-medium">Scientist Portal</a>
+</nav>
+</header>
+<main class="flex flex-1 justify-center py-10">
+<div class="layout-content-container flex flex-col max-w-7xl flex-1">
+<h2 class="text-white text-3xl font-bold tracking-[-0.015em] mb-6 text-center">Analytics Dashboard</h2>
+<div class="glassmorphism rounded-2xl p-6 min-h-[500px] flex items-center justify-center">
+<p class="text-gray-400">Analytics charts and data visualizations will be displayed here.</p>
+</div>
+</div>
+</main>
+</div>
+<script src="script.js"></script>
+</body>
+</html>
