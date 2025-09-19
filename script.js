@@ -1,7 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
     const currentPage = window.location.pathname.split('/').pop();
 
-    // Handle Top Navigation for Citizen Portal pages
     const topNavItems = document.querySelectorAll('.nav-item');
     topNavItems.forEach(item => {
         const itemHref = item.getAttribute('href');
@@ -10,7 +9,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Handle Sidebar Navigation for Scientist Portal pages
     const sidebarItems = document.querySelectorAll('.sidebar-item');
     sidebarItems.forEach(item => {
         const itemHref = item.getAttribute('href');
@@ -19,7 +17,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Handle login form submission with backend POST request
     const loginForm = document.getElementById('loginForm');
     if (loginForm) {
         loginForm.addEventListener('submit', async (e) => {
@@ -56,7 +53,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Handle 'Add Data' form submission with backend POST request and Excel file handling
     const sampleForm = document.getElementById('sampleForm');
     if (sampleForm) {
         sampleForm.addEventListener('submit', async (e) => {
@@ -68,58 +64,27 @@ document.addEventListener('DOMContentLoaded', () => {
             submitButton.textContent = 'Submitting...';
             submitButton.disabled = true;
 
-            const fileInput = document.getElementById('excelFile');
-            const file = fileInput.files[0];
-            let dataToSend = {};
-            let endpoint = '';
-
             try {
-                if (file) {
-                    // Conceptually read Excel file and send data
-                    // NOTE: This requires a library like SheetJS (https://sheetjs.com/)
-                    // You would need to add: <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
-                    const fileReader = new FileReader();
-                    fileReader.onload = async (event) => {
-                        const data = new Uint8Array(event.target.result);
-                        const workbook = XLSX.read(data, { type: 'array' });
-                        const firstSheetName = workbook.SheetNames[0];
-                        const worksheet = workbook.Sheets[firstSheetName];
-                        const jsonData = XLSX.utils.sheet_to_json(worksheet);
-
-                        // Send the parsed JSON data to the backend
-                        await sendDataToBackend(jsonData, 'excel-upload');
-                    };
-                    fileReader.readAsArrayBuffer(file);
-
-                } else {
-                    // If no file, get data from individual form fields
-                    dataToSend = {
-                        sampleId: document.getElementById('sampleId').value,
-                        date: document.getElementById('date').value,
-                        metalType: document.getElementById('metalType').value,
-                        concentration: parseFloat(document.getElementById('concentration').value),
-                        unit: document.getElementById('unit').value,
-                        depth: parseFloat(document.getElementById('depth').value),
-                        location: document.getElementById('location').value,
-                    };
-                    await sendDataToBackend(dataToSend, 'add-data');
-                }
-
-            } catch (error) {
-                statusMessage.textContent = 'Submission failed. Please try again.';
-                statusMessage.style.color = '#f87171';
-                console.error('Submission error:', error);
-                submitButton.textContent = 'Submit Sample';
-                submitButton.disabled = false;
-            }
-
-            async function sendDataToBackend(data, endpoint) {
-                const response = await fetch(`http://localhost:5050/${endpoint}`, {
+                const dataToSend = {
+                    sampleId: document.getElementById('sampleId').value,
+                    date: document.getElementById('date').value,
+                    depth: parseFloat(document.getElementById('depth').value) || 0,
+                    location: document.getElementById('location').value,
+                    metals: {
+                        lead: parseFloat(document.getElementById('lead').value) || 0,
+                        cadmium: parseFloat(document.getElementById('cadmium').value) || 0,
+                        chromium: parseFloat(document.getElementById('chromium').value) || 0,
+                        arsenic: parseFloat(document.getElementById('arsenic').value) || 0,
+                        mercury: parseFloat(document.getElementById('mercury').value) || 0,
+                    }
+                };
+                
+                const response = await fetch(`http://localhost:5050/add-data`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify(data)
+                    body: JSON.stringify(dataToSend)
                 });
 
                 if (response.ok) {
@@ -133,18 +98,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 submitButton.textContent = 'Submit Sample';
                 submitButton.disabled = false;
+
+            } catch (error) {
+                statusMessage.textContent = 'Submission failed. Please check your data.';
+                statusMessage.style.color = '#f87171';
+                console.error('Submission error:', error);
+                submitButton.textContent = 'Submit Sample';
+                submitButton.disabled = false;
             }
         });
     }
 
-    // Start of the water quality index calculation logic (original code)
-    const standards = {
-        lead: 0.01,
-        cadmium: 0.003,
-        chromium: 0.05,
-        arsenic: 0.01,
-        mercury: 0.006
-    };
+    // Water quality index calculation logic remains the same
+    const standards = { lead: 0.01, cadmium: 0.003, chromium: 0.05, arsenic: 0.01, mercury: 0.006 };
     function calculateIndices() {
         const concentrations = {
             lead: parseFloat(document.getElementById('lead').value) || 0,
@@ -155,24 +121,13 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         const metals = Object.keys(standards);
         const n = metals.length;
-        let sumWQi = 0;
-        let sumW = 0;
-        let hei = 0;
-        let cd = 0;
-        let sumCS = 0;
+        let sumWQi = 0; let sumW = 0; let hei = 0; let cd = 0; let sumCS = 0;
         metals.forEach((metal) => {
-            const C = concentrations[metal];
-            const S = standards[metal];
-            const W = 1 / S;
-            const Q = (C / S) * 100;
-            sumWQi += W * Q;
-            sumW += W;
-            hei += C / S;
-            cd += (C / S) - 1;
-            sumCS += C / S;
+            const C = concentrations[metal]; const S = standards[metal];
+            const W = 1 / S; const Q = (C / S) * 100;
+            sumWQi += W * Q; sumW += W; hei += C / S; cd += (C / S) - 1; sumCS += C / S;
         });
-        const hpi = sumWQi / sumW;
-        const mcd = sumCS / n;
+        const hpi = sumWQi / sumW; const mcd = sumCS / n;
         const hpiInterp = hpi < 100 ? { text: 'Low Pollution', class: 'low' } : { text: 'High Pollution', class: 'high' };
         const heiInterp = hei < 10 ? { text: 'Low', class: 'low' } : (hei < 20 ? { text: 'Medium', class: 'medium' } : { text: 'High', class: 'high' });
         const cdInterp = cd < 1 ? { text: 'Low', class: 'low' } : (cd < 3 ? { text: 'Medium', class: 'medium' } : { text: 'High', class: 'high' });
@@ -184,12 +139,7 @@ document.addEventListener('DOMContentLoaded', () => {
         else if (mcd < 16) mcdInterp = { text: 'Very High', class: 'very-high' };
         else mcdInterp = { text: 'Ultra High', class: 'ultra-high' };
         const resultContent = document.getElementById('result-content');
-        resultContent.innerHTML = `
-            <div class="result-item">HPI: <span class="result-value">${hpi.toFixed(2)}</span> <span class="interpretation ${hpiInterp.class}">${hpiInterp.text}</span></div>
-            <div class="result-item">HEI: <span class="result-value">${hei.toFixed(2)}</span> <span class="interpretation ${heiInterp.class}">${heiInterp.text}</span></div>
-            <div class="result-item">Cd: <span class="result-value">${cd.toFixed(2)}</span> <span class="interpretation ${cdInterp.class}">${cdInterp.text}</span></div>
-            <div class="result-item">mCd: <span class="result-value">${mcd.toFixed(2)}</span> <span class="interpretation ${mcdInterp.class}">${mcdInterp.text}</span></div>
-        `;
+        resultContent.innerHTML = `<div class="result-item">HPI: <span class="result-value">${hpi.toFixed(2)}</span> <span class="interpretation ${hpiInterp.class}">${hpiInterp.text}</span></div><div class="result-item">HEI: <span class="result-value">${hei.toFixed(2)}</span> <span class="interpretation ${heiInterp.class}">${heiInterp.text}</span></div><div class="result-item">Cd: <span class="result-value">${cd.toFixed(2)}</span> <span class="interpretation ${cdInterp.class}">${cdInterp.text}</span></div><div class="result-item">mCd: <span class="result-value">${mcd.toFixed(2)}</span> <span class="interpretation ${mcdInterp.class}">${mcdInterp.text}</span></div>`;
         document.getElementById('results').style.display = 'block';
     }
     function resetInputs() {
