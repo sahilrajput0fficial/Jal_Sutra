@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JAL Sutra - Demo Data Seeder</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;700;900&family=Space+Grotesk:wght@400;500;700" rel="stylesheet"/>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --primary-color: #1193d4;
+            --teal-color: #008080;
+            --navy-color: #000080;
+            --accent-color: #00f5d4;
+            --background-color: #111618;
+        }
+        body {
+            background-color: var(--background-color);
+        }
+        .glassmorphism {
+            background: rgba(28, 35, 39, 0.5);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(40, 51, 57, 0.3);
+        }
+        .progress-bar {
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+<body class="bg-[var(--background-color)] text-white min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <header class="text-center mb-8">
+            <div class="flex items-center justify-center gap-3 mb-4">
+                <svg class="h-12 w-12 text-[var(--primary-color)]" fill="none" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M24 4C25.7818 14.2173 33.7827 22.2182 44 24C33.7827 25.7818 25.7818 33.7827 24 44C22.2182 33.7827 14.2173 25.7818 4 24C14.2173 22.2182 22.2182 14.2173 24 4Z" fill="currentColor"></path>
+                </svg>
+                <h1 class="text-4xl font-bold text-white">JAL Sutra</h1>
+            </div>
+            <h2 class="text-2xl font-semibold text-gray-300">Demo Data Seeder</h2>
+            <p class="text-gray-400 mt-2">Insert realistic water quality samples for testing the interactive map</p>
+        </header>
+
+        <div class="max-w-4xl mx-auto">
+            <div class="glassmorphism rounded-2xl p-8 mb-8">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <div class="text-center">
+                        <div class="text-3xl font-bold text-[var(--accent-color)]" id="totalSamples">100</div>
+                        <div class="text-sm text-gray-400">Total Samples</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-3xl font-bold text-green-400" id="successCount">0</div>
+                        <div class="text-sm text-gray-400">Successfully Added</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-3xl font-bold text-red-400" id="failureCount">0</div>
+                        <div class="text-sm text-gray-400">Failed</div>
+                    </div>
+                </div>
+
+                <div class="mb-6">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-sm text-gray-400">Progress</span>
+                        <span class="text-sm text-gray-400" id="progressText">0/100</span>
+                    </div>
+                    <div class="w-full bg-gray-700 rounded-full h-2">
+                        <div class="progress-bar bg-[var(--accent-color)] h-2 rounded-full" id="progressBar" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <div class="text-center space-y-4">
+                    <button id="startSeeding" class="bg-[var(--accent-color)] hover:bg-cyan-400 text-black font-semibold px-8 py-3 rounded-lg transition-colors">
+                        Start Demo Data Seeding
+                    </button>
+                    <button id="stopSeeding" class="bg-red-600 hover:bg-red-500 text-white font-semibold px-8 py-3 rounded-lg transition-colors hidden">
+                        Stop Seeding
+                    </button>
+                </div>
+            </div>
+
+            <div class="glassmorphism rounded-2xl p-6">
+                <h3 class="text-xl font-semibold mb-4 text-[var(--accent-color)]">Seeding Log</h3>
+                <div id="logContainer" class="bg-black bg-opacity-30 rounded-lg p-4 h-96 overflow-y-auto font-mono text-sm">
+                    <div class="text-gray-400">Ready to start seeding demo data...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Demo data configuration
+        const API_BASE_URL = 'https://jal-sutra.vercel.app';
+        const TOTAL_SAMPLES = 100;
+        let isSeeding = false;
+        let seedingController = null;
+
+        // Indian cities and regions with realistic coordinates
+        const indianLocations = [
+            { name: 'Delhi', lat: 28.6139, lng: 77.2090, region: 'NCR' },
+            { name: 'Mumbai', lat: 19.0760, lng: 72.8777, region: 'Maharashtra' },
+            { name: 'Bangalore', lat: 12.9716, lng: 77.5946, region: 'Karnataka' },
+            { name: 'Chennai', lat: 13.0827, lng: 80.2707, region: 'Tamil Nadu' },
+            { name: 'Kolkata', lat: 22.5726, lng: 88.3639, region: 'West Bengal' },
+            { name: 'Hyderabad', lat: 17.3850, lng: 78.4867, region: 'Telangana' },
+            { name: 'Pune', lat: 18.5204, lng: 73.8567, region: 'Maharashtra' },
+            { name: 'Ahmedabad', lat: 23.0225, lng: 72.5714, region: 'Gujarat' },
+            { name: 'Jaipur', lat: 26.9124, lng: 75.7873, region: 'Rajasthan' },
+            { name: 'Lucknow', lat: 26.8467, lng: 80.9462, region: 'Uttar Pradesh' },
+            { name: 'Kanpur', lat: 26.4499, lng: 80.3319, region: 'Uttar Pradesh' },
+            { name: 'Nagpur', lat: 21.1458, lng: 79.0882, region: 'Maharashtra' },
+            { name: 'Indore', lat: 22.7196, lng: 75.8577, region: 'Madhya Pradesh' },
+            { name: 'Thane', lat: 19.2183, lng: 72.9781, region: 'Maharashtra' },
+            { name: 'Bhopal', lat: 23.2599, lng: 77.4126, region: 'Madhya Pradesh' },
+            { name: 'Visakhapatnam', lat: 17.6868, lng: 83.2185, region: 'Andhra Pradesh' },
+            { name: 'Pimpri-Chinchwad', lat: 18.6298, lng: 73.7997, region: 'Maharashtra' },
+            { name: 'Patna', lat: 25.5941, lng: 85.1376, region: 'Bihar' },
+            { name: 'Vadodara', lat: 22.3072, lng: 73.1812, region: 'Gujarat' },
+            { name: 'Ghaziabad', lat: 28.6692, lng: 77.4538, region: 'Uttar Pradesh' }
+        ];
+
+        // Water source types
+        const waterSources = [
+            'Groundwater Well', 'Municipal Supply', 'River Water', 'Lake Water',
+            'Tube Well', 'Hand Pump', 'Bore Well', 'Surface Water',
+            'Spring Water', 'Canal Water', 'Reservoir Water', 'Tank Water'
+        ];
+
+        // Realistic metal concentration ranges (in mg/L)
+        const metalRanges = {
+            lead: { min: 0.001, max: 0.05, safe: 0.01 },
+            cadmium: { min: 0.0001, max: 0.015, safe: 0.003 },
+            chromium: { min: 0.001, max: 0.2, safe: 0.05 },
+            arsenic: { min: 0.0005, max: 0.08, safe: 0.01 },
+            mercury: { min: 0.0001, max: 0.03, safe: 0.006 }
+        };
+
+        // Generate random value within range with bias towards safe levels
+        function generateMetalConcentration(metal) {
+            const range = metalRanges[metal];
+            const random = Math.random();
+            
+            // 70% chance of being within safe levels
+            if (random < 0.7) {
+                return Math.random() * range.safe;
+            } else {
+                // 30% chance of being higher (contaminated areas)
+                return range.safe + (Math.random() * (range.max - range.safe));
+            }
+        }
+
+        // Generate random date within last 2 years
+        function generateRandomDate() {
+            const start = new Date('2022-01-01');
+            const end = new Date();
+            const randomTime = start.getTime() + Math.random() * (end.getTime() - start.getTime());
+            return new Date(randomTime).toISOString().split('T')[0];
+        }
+
+        // Generate sample ID
+        function generateSampleId(index) {
+            const prefixes = ['WQ', 'AQ', 'GW', 'SW', 'TW', 'MW'];
+            const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
+            const year = new Date().getFullYear();
+            return `${prefix}-${year}-${String(index + 1).padStart(4, '0')}`;
+        }
+
+        // Generate location name
+        function generateLocation(cityData, index) {
+            const source = waterSources[Math.floor(Math.random() * waterSources.length)];
+            return `${cityData.name} - ${source} #${(index % 20) + 1}`;
+        }
+
+        // Generate demo sample
+        function generateDemoSample(index) {
+            const cityData = indianLocations[index % indianLocations.length];
+            
+            // Add variation to coordinates (±0.05 degrees)
+            const latVariation = (Math.random() - 0.5) * 0.1;
+            const lngVariation = (Math.random() - 0.5) * 0.1;
+            
+            return {
+                sampleId: generateSampleId(index),
+                date: generateRandomDate(),
+                depth: Math.random() < 0.3 ? Math.floor(Math.random() * 100) + 10 : 0,
+                location: generateLocation(cityData, index),
+                latitude: cityData.lat + latVariation,
+                longitude: cityData.lng + lngVariation,
+                metals: {
+                    lead: parseFloat(generateMetalConcentration('lead').toFixed(6)),
+                    cadmium: parseFloat(generateMetalConcentration('cadmium').toFixed(6)),
+                    chromium: parseFloat(generateMetalConcentration('chromium').toFixed(6)),
+                    arsenic: parseFloat(generateMetalConcentration('arsenic').toFixed(6)),
+                    mercury: parseFloat(generateMetalConcentration('mercury').toFixed(6))
+                }
+            };
+        }
+
+        // Log message to the console
+        function logMessage(message, type = 'info') {
+            const logContainer = document.getElementById('logContainer');
+            const timestamp = new Date().toLocaleTimeString();
+            const colorClass = type === 'success' ? 'text-green-400' : 
+                             type === 'error' ? 'text-red-400' : 
+                             type === 'warning' ? 'text-yellow-400' : 'text-gray-300';
+            
+            const logEntry = document.createElement('div');
+            logEntry.className = `${colorClass} mb-1`;
+            logEntry.innerHTML = `<span class="text-gray-500">[${timestamp}]</span> ${message}`;
+            
+            logContainer.appendChild(logEntry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+
+        // Update progress
+        function updateProgress(current, total, success, failures) {
+            const progressBar = document.getElementById('progressBar');
+            const progressText = document.getElementById('progressText');
+            const successCount = document.getElementById('successCount');
+            const failureCount = document.getElementById('failureCount');
+            
+            const percentage = (current / total) * 100;
+            progressBar.style.width = `${percentage}%`;
+            progressText.textContent = `${current}/${total}`;
+            successCount.textContent = success;
+            failureCount.textContent = failures;
+        }
+
+        // Insert sample data
+        async function insertSampleData(sample) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/add-data`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(sample)
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    logMessage(`✅ Inserted: ${sample.sampleId} - ${sample.location}`, 'success');
+                    return { success: true, data: result };
+                } else {
+                    const error = await response.json();
+                    logMessage(`❌ Failed: ${sample.sampleId} - ${error.message}`, 'error');
+                    return { success: false, error: error.message };
+                }
+            } catch (error) {
+                logMessage(`❌ Network error: ${sample.sampleId} - ${error.message}`, 'error');
+                return { success: false, error: error.message };
+            }
+        }
+
+        // Main seeding function
+        async function startSeeding() {
+            if (isSeeding) return;
+            
+            isSeeding = true;
+            seedingController = new AbortController();
+            
+            const startButton = document.getElementById('startSeeding');
+            const stopButton = document.getElementById('stopSeeding');
+            
+            startButton.classList.add('hidden');
+            stopButton.classList.remove('hidden');
+            
+            logMessage('🌱 Starting demo data seeding...', 'info');
+            logMessage(`📍 Generating ${TOTAL_SAMPLES} water quality samples`, 'info');
+            
+            let successCount = 0;
+            let failureCount = 0;
+            
+            for (let i = 0; i < TOTAL_SAMPLES && isSeeding; i++) {
+                if (seedingController.signal.aborted) break;
+                
+                const sample = generateDemoSample(i);
+                
+                logMessage(`[${i + 1}/${TOTAL_SAMPLES}] Processing: ${sample.sampleId}`, 'info');
+                
+                const result = await insertSampleData(sample);
+                
+                if (result.success) {
+                    successCount++;
+                } else {
+                    failureCount++;
+                }
+                
+                updateProgress(i + 1, TOTAL_SAMPLES, successCount, failureCount);
+                
+                // Add delay between requests
+                await new Promise(resolve => setTimeout(resolve, 300));
+            }
+            
+            if (isSeeding) {
+                logMessage(`🎉 Demo data seeding completed!`, 'success');
+                logMessage(`✅ Successfully inserted: ${successCount} samples`, 'success');
+                logMessage(`❌ Failed to insert: ${failureCount} samples`, failureCount > 0 ? 'error' : 'info');
+                logMessage(`🗺️ You can now view the interactive map with populated data!`, 'success');
+            } else {
+                logMessage(`⚡ Seeding stopped by user`, 'warning');
+            }
+            
+            stopSeeding();
+        }
+
+        // Stop seeding
+        function stopSeeding() {
+            isSeeding = false;
+            if (seedingController) {
+                seedingController.abort();
+            }
+            
+            const startButton = document.getElementById('startSeeding');
+            const stopButton = document.getElementById('stopSeeding');
+            
+            startButton.classList.remove('hidden');
+            stopButton.classList.add('hidden');
+        }
+
+        // Event listeners
+        document.getElementById('startSeeding').addEventListener('click', startSeeding);
+        document.getElementById('stopSeeding').addEventListener('click', stopSeeding);
+
+        // Initialize
+        logMessage('Demo data seeder ready. Click "Start Demo Data Seeding" to begin.', 'info');
+        logMessage(`Target: ${TOTAL_SAMPLES} samples across ${indianLocations.length} Indian cities`, 'info');
+    </script>
+</body>
+</html>

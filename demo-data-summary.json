@@ -1,0 +1,32 @@
+{
+  "total_samples": 100,
+  "successful_inserts": 100,
+  "failed_inserts": 0,
+  "cities_covered": 20,
+  "completion_time": "2025-09-21T06:22:00.574Z",
+  "sample_data_overview": {
+    "date_range": "2022-01-01 to present",
+    "metal_parameters": [
+      "lead",
+      "cadmium",
+      "chromium",
+      "arsenic",
+      "mercury"
+    ],
+    "water_sources": [
+      "Groundwater Well",
+      "Municipal Supply",
+      "River Water",
+      "Lake Water",
+      "Tube Well",
+      "Hand Pump",
+      "Bore Well",
+      "Surface Water",
+      "Spring Water",
+      "Canal Water",
+      "Reservoir Water",
+      "Tank Water"
+    ],
+    "geographic_coverage": "Major Indian cities"
+  }
+}

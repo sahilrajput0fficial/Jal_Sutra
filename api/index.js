@@ -115,11 +115,11 @@ app.post('/api/register', async (req, res) => {
 // Water Quality Data Routes
 app.post('/api/add-data', async (req, res) => {
   try {
-    const { sampleId, date, depth, location, metals } = req.body;
+    const { sampleId, date, depth, location, latitude, longitude, metals } = req.body;
     
-    if (!sampleId || !date || !location || !metals) {
+    if (!sampleId || !date || !location || !metals || latitude === undefined || longitude === undefined) {
       return res.status(400).json({ 
-        message: 'Missing required fields: sampleId, date, location, and metals are required' 
+        message: 'Missing required fields: sampleId, date, location, latitude, longitude, and metals are required' 
       });
     }
 
@@ -132,6 +132,8 @@ app.post('/api/add-data', async (req, res) => {
       date,
       depth || 0,
       location,
+      parseFloat(latitude),
+      parseFloat(longitude),
       lead || 0,
       cadmium || 0,
       chromium || 0,
@@ -153,11 +155,11 @@ app.post('/api/add-data', async (req, res) => {
 // For backward compatibility with frontend
 app.post('/add-data', async (req, res) => {
   try {
-    const { sampleId, date, depth, location, metals } = req.body;
+    const { sampleId, date, depth, location, latitude, longitude, metals } = req.body;
     
-    if (!sampleId || !date || !location || !metals) {
+    if (!sampleId || !date || !location || !metals || latitude === undefined || longitude === undefined) {
       return res.status(400).json({ 
-        message: 'Missing required fields: sampleId, date, location, and metals are required' 
+        message: 'Missing required fields: sampleId, date, location, latitude, longitude, and metals are required' 
       });
     }
 
@@ -170,6 +172,8 @@ app.post('/add-data', async (req, res) => {
       date,
       depth || 0,
       location,
+      parseFloat(latitude),
+      parseFloat(longitude),
       lead || 0,
       cadmium || 0,
       chromium || 0,
@@ -226,7 +230,7 @@ app.get('/api/readings/:id', async (req, res) => {
 app.put('/api/readings/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const { sampleId, date, depth, location, metals } = req.body;
+    const { sampleId, date, depth, location, latitude, longitude, metals } = req.body;
     
     const existingReading = await readingOperations.findById(id);
     if (!existingReading) {
@@ -240,6 +244,8 @@ app.put('/api/readings/:id', authenticateToken, async (req, res) => {
       date,
       depth: depth || 0,
       location,
+      latitude: latitude !== undefined ? parseFloat(latitude) : existingReading.latitude,
+      longitude: longitude !== undefined ? parseFloat(longitude) : existingReading.longitude,
       lead: lead || 0,
       cadmium: cadmium || 0,
       chromium: chromium || 0,
@@ -289,11 +295,29 @@ app.get('/api/readings/location', async (req, res) => {
     const latitude = parseFloat(lat);
     const longitude = parseFloat(lng);
     
-    // For now, get all readings and filter by location string matching
-    // In a real implementation, you'd use geospatial queries with proper coordinates
+    // Get all readings and filter by actual coordinates within radius
     const allReadings = await readingOperations.findAll();
     
-    // Calculate water hardness and quality indices for each reading
+    // Helper function to calculate distance between two points (Haversine formula)
+    function calculateDistance(lat1, lon1, lat2, lon2) {
+      const R = 6371; // Earth's radius in kilometers
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                Math.sin(dLon/2) * Math.sin(dLon/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      return R * c; // Distance in kilometers
+    }
+    
+    // Filter readings within the specified radius
+    const nearbyReadings = allReadings.filter(reading => {
+      if (!reading.latitude || !reading.longitude) return false;
+      const distance = calculateDistance(latitude, longitude, reading.latitude, reading.longitude);
+      return distance <= radiusKm;
+    });
+    
+    // Calculate water hardness and quality indices for each nearby reading
     const standards = { 
       lead: 0.01, 
       cadmium: 0.003, 
@@ -302,7 +326,7 @@ app.get('/api/readings/location', async (req, res) => {
       mercury: 0.006 
     };
     
-    const enrichedReadings = allReadings.map(reading => {
+    const enrichedReadings = nearbyReadings.map(reading => {
       const concentrations = {
         lead: reading.lead || 0,
         cadmium: reading.cadmium || 0,
@@ -361,28 +385,26 @@ app.get('/api/readings/location', async (req, res) => {
       };
     });
     
-    // For demo purposes, return all enriched readings
-    // In real implementation, filter by actual coordinates
-    const nearbyReadings = enrichedReadings;
+    // enrichedReadings now contains only readings within the specified radius
     
     // Calculate aggregate statistics for the area
     const areaStats = {
-      total_samples: nearbyReadings.length,
-      avg_hardness: nearbyReadings.reduce((sum, r) => sum + r.water_hardness.value, 0) / nearbyReadings.length || 0,
+      total_samples: enrichedReadings.length,
+      avg_hardness: enrichedReadings.reduce((sum, r) => sum + r.water_hardness.value, 0) / enrichedReadings.length || 0,
       hardness_distribution: {
-        soft: nearbyReadings.filter(r => r.water_hardness.category === 'Soft').length,
-        moderately_hard: nearbyReadings.filter(r => r.water_hardness.category === 'Moderately Hard').length,
-        hard: nearbyReadings.filter(r => r.water_hardness.category === 'Hard').length,
-        very_hard: nearbyReadings.filter(r => r.water_hardness.category === 'Very Hard').length
+        soft: enrichedReadings.filter(r => r.water_hardness.category === 'Soft').length,
+        moderately_hard: enrichedReadings.filter(r => r.water_hardness.category === 'Moderately Hard').length,
+        hard: enrichedReadings.filter(r => r.water_hardness.category === 'Hard').length,
+        very_hard: enrichedReadings.filter(r => r.water_hardness.category === 'Very Hard').length
       },
-      avg_pollution_index: nearbyReadings.reduce((sum, r) => sum + r.water_quality_indices.hpi, 0) / nearbyReadings.length || 0
+      avg_pollution_index: enrichedReadings.reduce((sum, r) => sum + r.water_quality_indices.hpi, 0) / enrichedReadings.length || 0
     };
     
     res.json({
-      message: `Found ${nearbyReadings.length} readings within ${radiusKm}km radius`,
+      message: `Found ${enrichedReadings.length} readings within ${radiusKm}km radius`,
       location: { latitude, longitude, radius: radiusKm },
       area_statistics: areaStats,
-      readings: nearbyReadings
+      readings: enrichedReadings
     });
   } catch (error) {
     console.error('Error fetching location-based readings:', error);

@@ -70,6 +70,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     date: document.getElementById('date').value,
                     depth: parseFloat(document.getElementById('depth').value) || 0,
                     location: document.getElementById('location').value,
+                    latitude: parseFloat(document.getElementById('latitude').value),
+                    longitude: parseFloat(document.getElementById('longitude').value),
                     metals: {
                         lead: parseFloat(document.getElementById('lead').value) || 0,
                         cadmium: parseFloat(document.getElementById('cadmium').value) || 0,
@@ -357,30 +359,21 @@ async function loadExistingDataPoints(map) {
             const data = await response.json();
             const readings = data.data || [];
 
-            // Add markers for existing readings (with sample coordinates)
-            readings.forEach((reading, index) => {
-                // Generate sample coordinates around major Indian cities
-                const cities = [
-                    {lat: 28.6139, lng: 77.2090, name: 'Delhi'},
-                    {lat: 19.0760, lng: 72.8777, name: 'Mumbai'},
-                    {lat: 13.0827, lng: 80.2707, name: 'Chennai'},
-                    {lat: 22.5726, lng: 88.3639, name: 'Kolkata'},
-                    {lat: 12.9716, lng: 77.5946, name: 'Bangalore'}
-                ];
-                
-                const city = cities[index % cities.length];
-                const lat = city.lat + (Math.random() - 0.5) * 0.5;
-                const lng = city.lng + (Math.random() - 0.5) * 0.5;
-
-                const marker = L.marker([lat, lng]).addTo(map);
-                marker.bindPopup(`
-                    <div class="p-2">
-                        <strong>${reading.sample_id}</strong><br>
-                        Location: ${reading.location}<br>
-                        Date: ${reading.date}<br>
-                        <small>Click map for detailed analysis</small>
-                    </div>
-                `);
+            // Add markers for existing readings using actual coordinates
+            readings.forEach((reading) => {
+                // Only add marker if coordinates exist
+                if (reading.latitude && reading.longitude) {
+                    const marker = L.marker([reading.latitude, reading.longitude]).addTo(map);
+                    marker.bindPopup(`
+                        <div class="p-2">
+                            <strong>${reading.sample_id}</strong><br>
+                            Location: ${reading.location}<br>
+                            Date: ${reading.date}<br>
+                            Coordinates: ${reading.latitude.toFixed(4)}, ${reading.longitude.toFixed(4)}<br>
+                            <small>Click map for detailed analysis</small>
+                        </div>
+                    `);
+                }
             });
         }
     } catch (error) {

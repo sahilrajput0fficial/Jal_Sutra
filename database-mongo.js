@@ -81,6 +81,14 @@ const readingSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
+  latitude: {
+    type: Number,
+    required: true
+  },
+  longitude: {
+    type: Number,
+    required: true
+  },
   lead: {
     type: Number,
     default: 0,
@@ -164,10 +172,10 @@ export const userOperations = {
 
 // Reading operations
 export const readingOperations = {
-  async create(sample_id, date, depth, location, lead, cadmium, chromium, arsenic, mercury, user_id = null) {
+  async create(sample_id, date, depth, location, latitude, longitude, lead, cadmium, chromium, arsenic, mercury, user_id = null) {
     await connectDB();
     const reading = new Reading({
-      sample_id, date, depth, location, lead, cadmium, chromium, arsenic, mercury, user_id
+      sample_id, date, depth, location, latitude, longitude, lead, cadmium, chromium, arsenic, mercury, user_id
     });
     return await reading.save();
   },
