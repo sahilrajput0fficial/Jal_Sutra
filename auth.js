@@ -2,7 +2,7 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { userOperations } from './database-mongo.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-this-in-production';
+const JWT_SECRET = process.env.JWT_SECRET || '50edf28add8d3bd562a4f4814f4fc441';
 
 // Generate JWT token
 export function generateToken(user) {
