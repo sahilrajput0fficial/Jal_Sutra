@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test - Marker Coordinate System</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 0; 
+            padding: 20px; 
+            background: #1a1a1a; 
+            color: white; 
+        }
+        #map { 
+            height: 500px; 
+            width: 100%; 
+            border: 2px solid #333; 
+            border-radius: 8px; 
+        }
+        .info {
+            background: #333;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            border-left: 4px solid #00f5d4;
+        }
+        .status {
+            background: #2a4d3a;
+            border-left-color: #4ade80;
+        }
+        .error {
+            background: #4d2a2a;
+            border-left-color: #ef4444;
+        }
+    </style>
+</head>
+<body>
+    <h1>🗺️ Water Quality Map - Marker Test</h1>
+    
+    <div class="info">
+        <h3>Testing Coordinate Fallback System</h3>
+        <p>This page tests whether water quality data markers appear on the map using city-based coordinate fallback when exact coordinates are missing.</p>
+    </div>
+
+    <div id="status" class="info">
+        <strong>Status:</strong> Loading map and data...
+    </div>
+
+    <div id="map"></div>
+
+    <div class="info">
+        <h3>What to Expect:</h3>
+        <ul>
+            <li><strong>Markers should appear</strong> across major Indian cities</li>
+            <li><strong>Slightly transparent markers</strong> indicate approximate locations</li>
+            <li><strong>Click markers</strong> to see popup with sample information</li>
+            <li><strong>Check console</strong> (F12) for detailed loading statistics</li>
+        </ul>
+    </div>
+
+    <script>
+        // Copy the coordinate system and functions from main script
+        const cityCoordinates = {
+            'delhi': { lat: 28.6139, lng: 77.2090 },
+            'mumbai': { lat: 19.0760, lng: 72.8777 },
+            'bangalore': { lat: 12.9716, lng: 77.5946 },
+            'kolkata': { lat: 22.5726, lng: 88.3639 },
+            'chennai': { lat: 13.0827, lng: 80.2707 },
+            'hyderabad': { lat: 17.3850, lng: 78.4867 },
+            'pune': { lat: 18.5204, lng: 73.8567 },
+            'ahmedabad': { lat: 23.0225, lng: 72.5714 },
+            'jaipur': { lat: 26.9124, lng: 75.7873 },
+            'lucknow': { lat: 26.8467, lng: 80.9462 },
+            'kanpur': { lat: 26.4499, lng: 80.3319 },
+            'nagpur': { lat: 21.1458, lng: 79.0882 },
+            'indore': { lat: 22.7196, lng: 75.8577 },
+            'thane': { lat: 19.2183, lng: 72.9781 },
+            'bhopal': { lat: 23.2599, lng: 77.4126 },
+            'visakhapatnam': { lat: 17.6868, lng: 83.2185 },
+            'patna': { lat: 25.5941, lng: 85.1376 },
+            'vadodara': { lat: 22.3072, lng: 73.1812 },
+            'ghaziabad': { lat: 28.6692, lng: 77.4538 },
+            'pimpri-chinchwad': { lat: 18.6298, lng: 73.7997 }
+        };
+
+        function extractCityFromLocation(locationString) {
+            if (!locationString) return null;
+            const parts = locationString.split(' - ');
+            if (parts.length > 0) {
+                return parts[0].toLowerCase().trim();
+            }
+            return null;
+        }
+
+        function getReadingCoordinates(reading) {
+            if (reading.latitude && reading.longitude) {
+                return {
+                    lat: reading.latitude,
+                    lng: reading.longitude,
+                    isExact: true
+                };
+            }
+            
+            const cityName = extractCityFromLocation(reading.location);
+            if (cityName && cityCoordinates[cityName]) {
+                const baseCoords = cityCoordinates[cityName];
+                const offset = 0.01;
+                return {
+                    lat: baseCoords.lat + (Math.random() - 0.5) * offset,
+                    lng: baseCoords.lng + (Math.random() - 0.5) * offset,
+                    isExact: false,
+                    cityName: cityName
+                };
+            }
+            
+            return null;
+        }
+
+        // Initialize map
+        const map = L.map('map').setView([20.5937, 78.9629], 5);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
+            maxZoom: 18,
+        }).addTo(map);
+
+        // Load and display data
+        async function loadData() {
+            const statusDiv = document.getElementById('status');
+            
+            try {
+                statusDiv.innerHTML = '<strong>Status:</strong> Fetching water quality data...';
+                
+                const response = await fetch('https://jal-sutra.vercel.app/api/readings');
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                const readings = data.data || [];
+                
+                statusDiv.innerHTML = '<strong>Status:</strong> Processing readings...';
+                
+                let exactCount = 0;
+                let approximateCount = 0;
+                let skippedCount = 0;
+
+                readings.forEach((reading) => {
+                    const coords = getReadingCoordinates(reading);
+                    
+                    if (coords) {
+                        const markerOptions = coords.isExact ? {} : { opacity: 0.7 };
+                        const marker = L.marker([coords.lat, coords.lng], markerOptions).addTo(map);
+                        
+                        const coordDisplay = coords.isExact ? 
+                            `${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)}` :
+                            `~${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)} (approx.)`;
+                        
+                        const coordinateLabel = coords.isExact ? 'Exact Coordinates:' : 'Approximate Coordinates:';
+                        
+                        marker.bindPopup(`
+                            <div style="padding: 8px;">
+                                <strong>${reading.sample_id}</strong><br>
+                                Location: ${reading.location}<br>
+                                Date: ${reading.date}<br>
+                                ${coordinateLabel} ${coordDisplay}<br>
+                                ${coords.isExact ? '' : '<small style="color: #888;">*Based on city location</small><br>'}
+                            </div>
+                        `);
+                        
+                        if (coords.isExact) exactCount++;
+                        else approximateCount++;
+                    } else {
+                        skippedCount++;
+                    }
+                });
+                
+                // Update status
+                statusDiv.className = 'info status';
+                statusDiv.innerHTML = `
+                    <strong>✅ Success!</strong> Loaded ${readings.length} water quality readings:<br>
+                    • ${exactCount} with exact coordinates<br>
+                    • ${approximateCount} with approximate coordinates (city-based)<br>
+                    • ${skippedCount} skipped (no location data)
+                `;
+                
+                console.log(`Test Results:`);
+                console.log(`- Total readings: ${readings.length}`);
+                console.log(`- Exact coordinates: ${exactCount}`);
+                console.log(`- Approximate coordinates: ${approximateCount}`);
+                console.log(`- Skipped: ${skippedCount}`);
+                
+            } catch (error) {
+                console.error('Error loading data:', error);
+                statusDiv.className = 'info error';
+                statusDiv.innerHTML = `<strong>❌ Error:</strong> Failed to load data - ${error.message}`;
+            }
+        }
+
+        // Start loading data
+        loadData();
+    </script>
+</body>
+</html>

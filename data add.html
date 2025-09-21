@@ -102,11 +102,25 @@
 </div>
 <div class="flex flex-col gap-2">
 <label class="text-sm font-medium text-[var(--on-surface-variant)]" for="latitude">Latitude *</label>
-<input class="w-full h-11 px-4 py-2 rounded-lg bg-[var(--surface)] text-[var(--on-surface)] border border-[var(--on-surface-variant)]/20 placeholder-gray-500 focus:border-[var(--primary-500)] focus:ring-[var(--primary-500)]" id="latitude" name="latitude" placeholder="e.g., 28.6139" required="" step="any" min="-90" max="90" type="number"/>
+<div class="flex gap-2">
+<input class="flex-1 h-11 px-4 py-2 rounded-lg bg-[var(--surface)] text-[var(--on-surface)] border border-[var(--on-surface-variant)]/20 placeholder-gray-500 focus:border-[var(--primary-500)] focus:ring-[var(--primary-500)]" id="latitude" name="latitude" placeholder="e.g., 28.6139" required="" step="any" min="-90" max="90" type="number"/>
+<button type="button" id="getCurrentLocation" class="h-11 px-4 rounded-lg bg-[var(--primary-600)] hover:bg-[var(--primary-500)] text-white font-medium transition-colors duration-200 flex items-center gap-2">
+<span class="material-symbols-outlined text-sm">my_location</span>
+<span>Use Current Location</span>
+</button>
+</div>
 </div>
 <div class="flex flex-col gap-2">
 <label class="text-sm font-medium text-[var(--on-surface-variant)]" for="longitude">Longitude *</label>
 <input class="w-full h-11 px-4 py-2 rounded-lg bg-[var(--surface)] text-[var(--on-surface)] border border-[var(--on-surface-variant)]/20 placeholder-gray-500 focus:border-[var(--primary-500)] focus:ring-[var(--primary-500)]" id="longitude" name="longitude" placeholder="e.g., 77.2090" required="" step="any" min="-180" max="180" type="number"/>
+</div>
+
+<!-- Location Status Display -->
+<div id="locationStatus" class="hidden">
+<div class="flex items-center gap-2 p-3 rounded-lg bg-[var(--primary-900)]/20 border border-[var(--primary-500)]/30">
+<span class="material-symbols-outlined text-[var(--primary-400)]" id="locationStatusIcon">info</span>
+<span class="text-sm text-[var(--primary-300)]" id="locationStatusText"></span>
+</div>
 </div>
 </div>
 </div>

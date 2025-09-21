@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test - Area Data Functionality</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 0; 
+            padding: 20px; 
+            background: #1a1a1a; 
+            color: white; 
+        }
+        #map { 
+            height: 400px; 
+            width: 100%; 
+            border: 2px solid #333; 
+            border-radius: 8px; 
+            margin: 20px 0;
+        }
+        .info {
+            background: #333;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            border-left: 4px solid #00f5d4;
+        }
+        .status {
+            background: #2a4d3a;
+            border-left-color: #4ade80;
+        }
+        .error {
+            background: #4d2a2a;
+            border-left-color: #ef4444;
+        }
+        .test-result {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            font-family: monospace;
+        }
+        .success { background: #1e3a2e; color: #4ade80; }
+        .fail { background: #3a1e1e; color: #ef4444; }
+        #testResults { margin-top: 20px; }
+        .hidden { display: none; }
+        button {
+            background: #00f5d4;
+            color: black;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #00d4aa; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Area Data Functionality Test</h1>
+    
+    <div class="info">
+        <h3>Testing 'Show Area Data' Functionality</h3>
+        <p>This page tests whether the fallback data processing system works when clicking "Show Area Data" on markers.</p>
+    </div>
+
+    <div id="status" class="info">
+        <strong>Status:</strong> Initializing test...
+    </div>
+
+    <div>
+        <button onclick="testDelhi()">Test Delhi Area</button>
+        <button onclick="testMumbai()">Test Mumbai Area</button>
+        <button onclick="testRandomLocation()">Test Random Location</button>
+        <button onclick="clearResults()">Clear Results</button>
+    </div>
+
+    <div id="map"></div>
+
+    <div id="testResults"></div>
+
+    <div class="info">
+        <h3>How to Test:</h3>
+        <ul>
+            <li>Click the test buttons to simulate clicking on different areas</li>
+            <li>Check the test results below to see if data processing works</li>
+            <li>Look for markers on the map and try clicking them</li>
+            <li>Check browser console (F12) for detailed logs</li>
+        </ul>
+    </div>
+
+    <script>
+        // Copy all the necessary functions from main script
+        const cityCoordinates = {
+            'delhi': { lat: 28.6139, lng: 77.2090 },
+            'mumbai': { lat: 19.0760, lng: 72.8777 },
+            'bangalore': { lat: 12.9716, lng: 77.5946 },
+            'kolkata': { lat: 22.5726, lng: 88.3639 },
+            'chennai': { lat: 13.0827, lng: 80.2707 },
+            'hyderabad': { lat: 17.3850, lng: 78.4867 },
+            'pune': { lat: 18.5204, lng: 73.8567 },
+            'ahmedabad': { lat: 23.0225, lng: 72.5714 },
+            'jaipur': { lat: 26.9124, lng: 75.7873 },
+            'lucknow': { lat: 26.8467, lng: 80.9462 }
+        };
+
+        let allReadingsData = null;
+
+        function extractCityFromLocation(locationString) {
+            if (!locationString) return null;
+            const parts = locationString.split(' - ');
+            if (parts.length > 0) {
+                return parts[0].toLowerCase().trim();
+            }
+            return null;
+        }
+
+        function calculateWaterHardness(reading) {
+            const baseHardness = 120;
+            const metalFactor = (reading.lead + reading.cadmium + reading.chromium + reading.arsenic + reading.mercury) * 1000;
+            const calculatedHardness = baseHardness + metalFactor;
+            
+            let category = 'Soft';
+            if (calculatedHardness >= 300) category = 'Very Hard';
+            else if (calculatedHardness >= 180) category = 'Hard';
+            else if (calculatedHardness >= 60) category = 'Moderately Hard';
+            
+            return { value: calculatedHardness, category: category };
+        }
+
+        function calculateHPI(reading) {
+            const standards = {
+                lead: 0.010, cadmium: 0.003, chromium: 0.050, arsenic: 0.010, mercury: 0.006
+            };
+            
+            const metals = ['lead', 'cadmium', 'chromium', 'arsenic', 'mercury'];
+            let sumWQi = 0, sumW = 0;
+            
+            metals.forEach(metal => {
+                const C = reading[metal] || 0;
+                const S = standards[metal];
+                const W = 1 / S;
+                const Q = (C / S) * 100;
+                sumWQi += W * Q;
+                sumW += W;
+            });
+            
+            return sumWQi / sumW;
+        }
+
+        function findNearbyReadings(lat, lng, allReadings) {
+            let closestCity = null;
+            let minDistance = Infinity;
+            
+            Object.keys(cityCoordinates).forEach(cityName => {
+                const cityCoords = cityCoordinates[cityName];
+                const distance = Math.sqrt(
+                    Math.pow(lat - cityCoords.lat, 2) + Math.pow(lng - cityCoords.lng, 2)
+                );
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    closestCity = cityName;
+                }
+            });
+            
+            if (!closestCity) return [];
+            
+            return allReadings.filter(reading => {
+                const readingCity = extractCityFromLocation(reading.location);
+                return readingCity === closestCity;
+            });
+        }
+
+        function generateAreaStatistics(readings, lat, lng) {
+            if (!readings || readings.length === 0) {
+                return {
+                    area_statistics: {
+                        total_samples: 0,
+                        avg_hardness: 0,
+                        avg_pollution_index: 0,
+                        hardness_distribution: { soft: 0, moderately_hard: 0, hard: 0, very_hard: 0 }
+                    },
+                    location: { latitude: lat, longitude: lng, radius: 1 },
+                    readings: []
+                };
+            }
+            
+            const processedReadings = readings.map(reading => {
+                const waterHardness = calculateWaterHardness(reading);
+                const pollutionIndex = calculateHPI(reading);
+                
+                return {
+                    ...reading,
+                    water_hardness: waterHardness,
+                    pollution_index: pollutionIndex,
+                    concentrations: {
+                        lead: reading.lead || 0,
+                        cadmium: reading.cadmium || 0,
+                        chromium: reading.chromium || 0,
+                        arsenic: reading.arsenic || 0,
+                        mercury: reading.mercury || 0
+                    }
+                };
+            });
+            
+            const avgHardness = processedReadings.reduce((sum, r) => sum + r.water_hardness.value, 0) / processedReadings.length;
+            const avgPollution = processedReadings.reduce((sum, r) => sum + r.pollution_index, 0) / processedReadings.length;
+            
+            const distribution = { soft: 0, moderately_hard: 0, hard: 0, very_hard: 0 };
+            processedReadings.forEach(reading => {
+                const category = reading.water_hardness.category;
+                if (category === 'Soft') distribution.soft++;
+                else if (category === 'Moderately Hard') distribution.moderately_hard++;
+                else if (category === 'Hard') distribution.hard++;
+                else if (category === 'Very Hard') distribution.very_hard++;
+            });
+            
+            return {
+                area_statistics: {
+                    total_samples: processedReadings.length,
+                    avg_hardness: avgHardness,
+                    avg_pollution_index: avgPollution,
+                    hardness_distribution: distribution
+                },
+                location: { latitude: lat, longitude: lng, radius: 1 },
+                readings: processedReadings
+            };
+        }
+
+        // Test functions
+        async function testAreaData(lat, lng, areaName) {
+            const resultsDiv = document.getElementById('testResults');
+            const testId = `test-${Date.now()}`;
+            
+            addTestResult(testId, `Testing ${areaName} (${lat.toFixed(4)}, ${lng.toFixed(4)})...`, 'info');
+            
+            try {
+                // Load all readings if not cached
+                if (!allReadingsData) {
+                    addTestResult(testId + '-load', 'Loading readings data...', 'info');
+                    const response = await fetch('https://jal-sutra.vercel.app/api/readings');
+                    if (response.ok) {
+                        const result = await response.json();
+                        allReadingsData = result.data || [];
+                        addTestResult(testId + '-load', `✅ Loaded ${allReadingsData.length} readings`, 'success');
+                    } else {
+                        throw new Error('Failed to load readings data');
+                    }
+                }
+                
+                // Test nearby readings finder
+                const nearbyReadings = findNearbyReadings(lat, lng, allReadingsData);
+                addTestResult(testId + '-nearby', `Found ${nearbyReadings.length} nearby readings`, nearbyReadings.length > 0 ? 'success' : 'fail');
+                
+                // Test statistics generation
+                const stats = generateAreaStatistics(nearbyReadings, lat, lng);
+                addTestResult(testId + '-stats', `Generated statistics - Avg Hardness: ${stats.area_statistics.avg_hardness.toFixed(1)} mg/L, Pollution Index: ${stats.area_statistics.avg_pollution_index.toFixed(1)}`, 'success');
+                
+                // Add marker to map
+                const marker = L.marker([lat, lng]).addTo(map);
+                marker.bindPopup(`
+                    <div>
+                        <strong>${areaName}</strong><br>
+                        Samples: ${stats.area_statistics.total_samples}<br>
+                        Hardness: ${stats.area_statistics.avg_hardness.toFixed(1)} mg/L<br>
+                        Pollution: ${stats.area_statistics.avg_pollution_index.toFixed(1)}
+                    </div>
+                `);
+                
+                updateStatus(`✅ Test completed for ${areaName}`, 'status');
+                
+            } catch (error) {
+                addTestResult(testId + '-error', `❌ Error: ${error.message}`, 'fail');
+                updateStatus(`❌ Test failed for ${areaName}`, 'error');
+            }
+        }
+
+        function addTestResult(id, message, type) {
+            const resultsDiv = document.getElementById('testResults');
+            const div = document.createElement('div');
+            div.className = `test-result ${type}`;
+            div.id = id;
+            div.textContent = `${new Date().toLocaleTimeString()} - ${message}`;
+            resultsDiv.appendChild(div);
+        }
+
+        function updateStatus(message, type) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.className = `info ${type}`;
+            statusDiv.innerHTML = `<strong>Status:</strong> ${message}`;
+        }
+
+        // Test button functions
+        async function testDelhi() {
+            await testAreaData(28.6139, 77.2090, 'Delhi');
+        }
+
+        async function testMumbai() {
+            await testAreaData(19.0760, 72.8777, 'Mumbai');
+        }
+
+        async function testRandomLocation() {
+            const cities = Object.keys(cityCoordinates);
+            const randomCity = cities[Math.floor(Math.random() * cities.length)];
+            const coords = cityCoordinates[randomCity];
+            await testAreaData(coords.lat, coords.lng, randomCity.charAt(0).toUpperCase() + randomCity.slice(1));
+        }
+
+        function clearResults() {
+            document.getElementById('testResults').innerHTML = '';
+            updateStatus('Results cleared', 'status');
+        }
+
+        // Initialize map
+        const map = L.map('map').setView([20.5937, 78.9629], 5);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
+            maxZoom: 18,
+        }).addTo(map);
+
+        updateStatus('Ready for testing', 'status');
+        console.log('🧪 Area data test page loaded');
+    </script>
+</body>
+</html>

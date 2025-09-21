@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test - Use Current Location Feature</title>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <style>
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+            background: #0D1117;
+            color: #F0F6FC;
+        }
+        .glassmorphism {
+            background: rgba(22, 27, 34, 0.6);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(139, 148, 158, 0.2);
+        }
+    </style>
+</head>
+<body class="min-h-screen p-8">
+    <div class="max-w-2xl mx-auto">
+        <h1 class="text-3xl font-bold mb-8 text-center">📍 Current Location Test</h1>
+        
+        <div class="glassmorphism rounded-2xl p-6 space-y-6">
+            <div class="text-center">
+                <h2 class="text-xl font-semibold mb-4">Test the "Use Current Location" Feature</h2>
+                <p class="text-gray-400 mb-6">Click the button below to test the geolocation functionality that will be used in the data entry form.</p>
+            </div>
+
+            <!-- Test Form -->
+            <form class="space-y-4">
+                <div class="flex flex-col gap-2">
+                    <label class="text-sm font-medium text-gray-300" for="testLatitude">Latitude</label>
+                    <div class="flex gap-2">
+                        <input 
+                            class="flex-1 h-11 px-4 py-2 rounded-lg bg-gray-800 text-white border border-gray-600 placeholder-gray-400 focus:border-cyan-500 focus:ring-cyan-500" 
+                            id="testLatitude" 
+                            name="testLatitude" 
+                            placeholder="Will be filled automatically" 
+                            step="any" 
+                            min="-90" 
+                            max="90" 
+                            type="number"
+                            readonly
+                        />
+                        <button 
+                            type="button" 
+                            id="testGetCurrentLocation" 
+                            class="h-11 px-4 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white font-medium transition-colors duration-200 flex items-center gap-2"
+                        >
+                            <span class="material-symbols-outlined text-sm">my_location</span>
+                            <span>Use Current Location</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="flex flex-col gap-2">
+                    <label class="text-sm font-medium text-gray-300" for="testLongitude">Longitude</label>
+                    <input 
+                        class="w-full h-11 px-4 py-2 rounded-lg bg-gray-800 text-white border border-gray-600 placeholder-gray-400 focus:border-cyan-500 focus:ring-cyan-500" 
+                        id="testLongitude" 
+                        name="testLongitude" 
+                        placeholder="Will be filled automatically" 
+                        step="any" 
+                        min="-180" 
+                        max="180" 
+                        type="number"
+                        readonly
+                    />
+                </div>
+
+                <div class="flex flex-col gap-2">
+                    <label class="text-sm font-medium text-gray-300" for="testLocation">Location Description</label>
+                    <input 
+                        class="w-full h-11 px-4 py-2 rounded-lg bg-gray-800 text-white border border-gray-600 placeholder-gray-400 focus:border-cyan-500 focus:ring-cyan-500" 
+                        id="testLocation" 
+                        name="testLocation" 
+                        placeholder="Address will be suggested automatically"
+                        type="text"
+                    />
+                </div>
+
+                <!-- Location Status Display -->
+                <div id="testLocationStatus" class="hidden">
+                    <div class="flex items-center gap-2 p-3 rounded-lg">
+                        <span class="material-symbols-outlined" id="testLocationStatusIcon">info</span>
+                        <span class="text-sm" id="testLocationStatusText"></span>
+                    </div>
+                </div>
+            </form>
+
+            <!-- Information Section -->
+            <div class="mt-8 p-4 bg-gray-800/50 rounded-lg">
+                <h3 class="text-lg font-semibold mb-3 text-cyan-400">How it works:</h3>
+                <ul class="space-y-2 text-sm text-gray-300">
+                    <li>🌐 <strong>Browser Location API:</strong> Uses the browser's built-in geolocation</li>
+                    <li>🎯 <strong>High Accuracy:</strong> Attempts to use GPS for precise coordinates</li>
+                    <li>📍 <strong>Auto Address:</strong> Suggests location description based on coordinates</li>
+                    <li>🔒 <strong>Permission Required:</strong> Browser will ask for location permission</li>
+                    <li>⚡ <strong>Timeout:</strong> 10-second timeout with fallback options</li>
+                </ul>
+            </div>
+
+            <!-- Test Results -->
+            <div id="testResults" class="hidden mt-6 p-4 bg-gray-900/50 rounded-lg">
+                <h3 class="text-lg font-semibold mb-3 text-green-400">Test Results:</h3>
+                <div id="resultsContent" class="text-sm text-gray-300"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Copy the geolocation functions from main script
+        function getCurrentLocation() {
+            const latitudeInput = document.getElementById('testLatitude');
+            const longitudeInput = document.getElementById('testLongitude');
+            const locationStatusDiv = document.getElementById('testLocationStatus');
+            const locationStatusIcon = document.getElementById('testLocationStatusIcon');
+            const locationStatusText = document.getElementById('testLocationStatusText');
+            const getCurrentLocationBtn = document.getElementById('testGetCurrentLocation');
+            
+            // Show loading state
+            if (getCurrentLocationBtn) {
+                getCurrentLocationBtn.disabled = true;
+                getCurrentLocationBtn.innerHTML = `
+                    <span class="material-symbols-outlined text-sm animate-pulse">location_searching</span>
+                    <span>Getting Location...</span>
+                `;
+            }
+            
+            // Show loading status
+            showLocationStatus('location_searching', 'Getting your current location...', 'loading');
+            
+            // Check if geolocation is supported
+            if (!navigator.geolocation) {
+                showLocationStatus('error', 'Geolocation is not supported by this browser.', 'error');
+                resetLocationButton();
+                return;
+            }
+            
+            // Get current position
+            navigator.geolocation.getCurrentPosition(
+                // Success callback
+                function(position) {
+                    const latitude = position.coords.latitude;
+                    const longitude = position.coords.longitude;
+                    const accuracy = position.coords.accuracy;
+                    
+                    // Update form fields
+                    if (latitudeInput) latitudeInput.value = latitude.toFixed(6);
+                    if (longitudeInput) longitudeInput.value = longitude.toFixed(6);
+                    
+                    // Show success status
+                    const accuracyText = accuracy < 100 ? 'High accuracy' : accuracy < 1000 ? 'Medium accuracy' : 'Low accuracy';
+                    showLocationStatus(
+                        'check_circle', 
+                        `Location obtained successfully! (${accuracyText}: ±${Math.round(accuracy)}m)`,
+                        'success'
+                    );
+                    
+                    // Show test results
+                    showTestResults(latitude, longitude, accuracy);
+                    
+                    // Try to get address information
+                    reverseGeocode(latitude, longitude);
+                    
+                    resetLocationButton();
+                    
+                    console.log(`📍 Current location: ${latitude.toFixed(6)}, ${longitude.toFixed(6)} (±${Math.round(accuracy)}m)`);
+                },
+                
+                // Error callback
+                function(error) {
+                    let errorMessage = '';
+                    
+                    switch(error.code) {
+                        case error.PERMISSION_DENIED:
+                            errorMessage = 'Location access denied by user. Please enable location permissions and try again.';
+                            break;
+                        case error.POSITION_UNAVAILABLE:
+                            errorMessage = 'Location information is unavailable. Please check your GPS/network connection.';
+                            break;
+                        case error.TIMEOUT:
+                            errorMessage = 'Location request timed out. Please try again.';
+                            break;
+                        default:
+                            errorMessage = 'An unknown error occurred while retrieving location.';
+                            break;
+                    }
+                    
+                    showLocationStatus('error', errorMessage, 'error');
+                    resetLocationButton();
+                    
+                    console.error('Geolocation error:', error.message);
+                },
+                
+                // Options
+                {
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 60000
+                }
+            );
+        }
+
+        function showLocationStatus(icon, message, type) {
+            const locationStatusDiv = document.getElementById('testLocationStatus');
+            const locationStatusIcon = document.getElementById('testLocationStatusIcon');
+            const locationStatusText = document.getElementById('testLocationStatusText');
+            
+            if (!locationStatusDiv || !locationStatusIcon || !locationStatusText) return;
+            
+            // Update icon and text
+            locationStatusIcon.textContent = icon;
+            locationStatusText.textContent = message;
+            
+            // Reset classes
+            locationStatusDiv.className = 'flex items-center gap-2 p-3 rounded-lg';
+            locationStatusIcon.className = 'material-symbols-outlined';
+            locationStatusText.className = 'text-sm';
+            
+            // Apply styling based on type
+            switch(type) {
+                case 'loading':
+                    locationStatusDiv.className += ' bg-blue-900/20 border border-blue-500/30';
+                    locationStatusIcon.className += ' text-blue-400';
+                    locationStatusText.className += ' text-blue-300';
+                    break;
+                case 'success':
+                    locationStatusDiv.className += ' bg-green-900/20 border border-green-500/30';
+                    locationStatusIcon.className += ' text-green-400';
+                    locationStatusText.className += ' text-green-300';
+                    break;
+                case 'error':
+                    locationStatusDiv.className += ' bg-red-900/20 border border-red-500/30';
+                    locationStatusIcon.className += ' text-red-400';
+                    locationStatusText.className += ' text-red-300';
+                    break;
+            }
+            
+            // Show the status div
+            document.getElementById('testLocationStatus').classList.remove('hidden');
+            
+            // Auto-hide success messages after 5 seconds
+            if (type === 'success') {
+                setTimeout(() => {
+                    document.getElementById('testLocationStatus').classList.add('hidden');
+                }, 5000);
+            }
+        }
+
+        function resetLocationButton() {
+            const getCurrentLocationBtn = document.getElementById('testGetCurrentLocation');
+            if (getCurrentLocationBtn) {
+                getCurrentLocationBtn.disabled = false;
+                getCurrentLocationBtn.innerHTML = `
+                    <span class="material-symbols-outlined text-sm">my_location</span>
+                    <span>Use Current Location</span>
+                `;
+            }
+        }
+
+        function reverseGeocode(latitude, longitude) {
+            const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`;
+            
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    if (data && data.display_name) {
+                        const locationInput = document.getElementById('testLocation');
+                        
+                        if (locationInput && (!locationInput.value || locationInput.value.trim() === '')) {
+                            const addressParts = [];
+                            if (data.address) {
+                                if (data.address.neighbourhood) addressParts.push(data.address.neighbourhood);
+                                if (data.address.suburb) addressParts.push(data.address.suburb);
+                                if (data.address.city) addressParts.push(data.address.city);
+                                if (data.address.state) addressParts.push(data.address.state);
+                            }
+                            
+                            const suggestedLocation = addressParts.length > 0 ? addressParts.join(', ') : data.display_name.split(',').slice(0, 3).join(', ');
+                            locationInput.placeholder = `Suggested: ${suggestedLocation}`;
+                            
+                            console.log('📍 Address found:', suggestedLocation);
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.log('ℹ️ Reverse geocoding failed (optional feature):', error.message);
+                });
+        }
+
+        function showTestResults(latitude, longitude, accuracy) {
+            const resultsDiv = document.getElementById('testResults');
+            const resultsContent = document.getElementById('resultsContent');
+            
+            resultsContent.innerHTML = `
+                <div class="space-y-2">
+                    <p><strong>Latitude:</strong> ${latitude.toFixed(6)}°</p>
+                    <p><strong>Longitude:</strong> ${longitude.toFixed(6)}°</p>
+                    <p><strong>Accuracy:</strong> ±${Math.round(accuracy)} meters</p>
+                    <p><strong>Quality:</strong> ${accuracy < 100 ? '🎯 High' : accuracy < 1000 ? '📍 Medium' : '📌 Low'}</p>
+                    <p><strong>Timestamp:</strong> ${new Date().toLocaleString()}</p>
+                </div>
+            `;
+            
+            resultsDiv.classList.remove('hidden');
+        }
+
+        // Event listeners
+        document.addEventListener('DOMContentLoaded', function() {
+            const getCurrentLocationBtn = document.getElementById('testGetCurrentLocation');
+            if (getCurrentLocationBtn) {
+                getCurrentLocationBtn.addEventListener('click', getCurrentLocation);
+            }
+        });
+    </script>
+</body>
+</html>
