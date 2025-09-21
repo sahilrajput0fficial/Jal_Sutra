@@ -26,7 +26,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const statusMessage = document.getElementById('statusMessage');
 
             try {
-                const response = await fetch('https://jal-sutra.vercel.app//login', {
+                const response = await fetch('https://jal-sutra.vercel.app/backend/login', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'

@@ -1,45 +1,67 @@
 import express from 'express';
 import cors from 'cors';
-import morgan from 'morgan';
 import dotenv from 'dotenv';
-import path from 'path';
-import { fileURLToPath } from 'url';
 
-import './database.js'; // Initialize database
+import { initializeAdmin, readingOperations } from './database-mongo.js';
 import { loginUser, registerUser, authenticateToken } from './auth.js';
-import { readingQueries } from './database.js';
 
 // Load environment variables
 dotenv.config();
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
 const app = express();
-const PORT = process.env.PORT || 5050;
+
+// Initialize database
+initializeAdmin();
 
 // Middleware
-app.use(morgan('combined'));
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://127.0.0.1:3000', 'file://', 'null'],
+  origin: true,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json());
-app.use(express.static(path.join(__dirname, '../')));
-
-// Serve frontend files
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, '../home.html'));
-});
 
 // Health check
-app.get('/health', (req, res) => {
+app.get('/api', (req, res) => {
+  res.json({ 
+    status: 'OK', 
+    message: 'JAL Sutra Backend API',
+    timestamp: new Date().toISOString() 
+  });
+});
+
+app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
 // Authentication Routes
+app.post('/api/login', async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    
+    if (!username || !password) {
+      return res.status(400).json({ message: 'Username and password are required' });
+    }
+    
+    const result = await loginUser(username, password);
+    
+    if (result.success) {
+      res.json({
+        message: 'Login successful',
+        user: result.user,
+        token: result.token
+      });
+    } else {
+      res.status(401).json({ message: result.message });
+    }
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// For backward compatibility with frontend
 app.post('/login', async (req, res) => {
   try {
     const { username, password } = req.body;
@@ -65,7 +87,7 @@ app.post('/login', async (req, res) => {
   }
 });
 
-app.post('/register', async (req, res) => {
+app.post('/api/register', async (req, res) => {
   try {
     const { username, password, email } = req.body;
     
@@ -91,6 +113,44 @@ app.post('/register', async (req, res) => {
 });
 
 // Water Quality Data Routes
+app.post('/api/add-data', async (req, res) => {
+  try {
+    const { sampleId, date, depth, location, metals } = req.body;
+    
+    if (!sampleId || !date || !location || !metals) {
+      return res.status(400).json({ 
+        message: 'Missing required fields: sampleId, date, location, and metals are required' 
+      });
+    }
+
+    // Extract metal concentrations
+    const { lead, cadmium, chromium, arsenic, mercury } = metals;
+    
+    // Insert reading into database
+    const newReading = await readingOperations.create(
+      sampleId,
+      date,
+      depth || 0,
+      location,
+      lead || 0,
+      cadmium || 0,
+      chromium || 0,
+      arsenic || 0,
+      mercury || 0,
+      null // user_id - set to null for now
+    );
+    
+    res.status(201).json({
+      message: 'Sample data submitted successfully',
+      data: newReading
+    });
+  } catch (error) {
+    console.error('Data submission error:', error);
+    res.status(500).json({ message: 'Failed to submit sample data' });
+  }
+});
+
+// For backward compatibility with frontend
 app.post('/add-data', async (req, res) => {
   try {
     const { sampleId, date, depth, location, metals } = req.body;
@@ -105,7 +165,7 @@ app.post('/add-data', async (req, res) => {
     const { lead, cadmium, chromium, arsenic, mercury } = metals;
     
     // Insert reading into database
-    const result = readingQueries.create.run(
+    const newReading = await readingOperations.create(
       sampleId,
       date,
       depth || 0,
@@ -115,10 +175,8 @@ app.post('/add-data', async (req, res) => {
       chromium || 0,
       arsenic || 0,
       mercury || 0,
-      null // user_id - set to null for now, can be updated with authentication
+      null // user_id - set to null for now
     );
-    
-    const newReading = readingQueries.findById.get(result.lastInsertRowid);
     
     res.status(201).json({
       message: 'Sample data submitted successfully',
@@ -131,9 +189,9 @@ app.post('/add-data', async (req, res) => {
 });
 
 // Get all readings
-app.get('/api/readings', (req, res) => {
+app.get('/api/readings', async (req, res) => {
   try {
-    const readings = readingQueries.findAll.all();
+    const readings = await readingOperations.findAll();
     res.json({
       message: 'Readings retrieved successfully',
       data: readings
@@ -145,10 +203,10 @@ app.get('/api/readings', (req, res) => {
 });
 
 // Get specific reading
-app.get('/api/readings/:id', (req, res) => {
+app.get('/api/readings/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const reading = readingQueries.findById.get(id);
+    const reading = await readingOperations.findById(id);
     
     if (!reading) {
       return res.status(404).json({ message: 'Reading not found' });
@@ -165,32 +223,29 @@ app.get('/api/readings/:id', (req, res) => {
 });
 
 // Update reading (protected route)
-app.put('/api/readings/:id', authenticateToken, (req, res) => {
+app.put('/api/readings/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const { sampleId, date, depth, location, metals } = req.body;
     
-    const existingReading = readingQueries.findById.get(id);
+    const existingReading = await readingOperations.findById(id);
     if (!existingReading) {
       return res.status(404).json({ message: 'Reading not found' });
     }
     
     const { lead, cadmium, chromium, arsenic, mercury } = metals;
     
-    readingQueries.update.run(
-      sampleId,
+    const updatedReading = await readingOperations.update(id, {
+      sample_id: sampleId,
       date,
-      depth || 0,
+      depth: depth || 0,
       location,
-      lead || 0,
-      cadmium || 0,
-      chromium || 0,
-      arsenic || 0,
-      mercury || 0,
-      id
-    );
-    
-    const updatedReading = readingQueries.findById.get(id);
+      lead: lead || 0,
+      cadmium: cadmium || 0,
+      chromium: chromium || 0,
+      arsenic: arsenic || 0,
+      mercury: mercury || 0
+    });
     
     res.json({
       message: 'Reading updated successfully',
@@ -203,16 +258,16 @@ app.put('/api/readings/:id', authenticateToken, (req, res) => {
 });
 
 // Delete reading (protected route)
-app.delete('/api/readings/:id', authenticateToken, (req, res) => {
+app.delete('/api/readings/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     
-    const existingReading = readingQueries.findById.get(id);
+    const existingReading = await readingOperations.findById(id);
     if (!existingReading) {
       return res.status(404).json({ message: 'Reading not found' });
     }
     
-    readingQueries.delete.run(id);
+    await readingOperations.delete(id);
     
     res.json({ message: 'Reading deleted successfully' });
   } catch (error) {
@@ -222,9 +277,9 @@ app.delete('/api/readings/:id', authenticateToken, (req, res) => {
 });
 
 // Analytics endpoint
-app.get('/api/analytics', (req, res) => {
+app.get('/api/analytics', async (req, res) => {
   try {
-    const analytics = readingQueries.getAnalytics.get();
+    const analytics = await readingOperations.getAnalytics();
     
     // Calculate water quality indices for average values
     const standards = { 
@@ -292,14 +347,4 @@ app.use((err, req, res, next) => {
   res.status(500).json({ message: 'Something went wrong!' });
 });
 
-// 404 handler
-app.use((req, res) => {
-  res.status(404).json({ message: 'Route not found' });
-});
-
-// Start server
-app.listen(PORT, () => {
-  console.log(`🚀 JAL Sutra Backend Server running on http://localhost:${PORT}`);
-  console.log(`📊 Frontend available at http://localhost:${PORT}`);
-  console.log(`🏥 Health check: http://localhost:${PORT}/health`);
-});
+export default app;
