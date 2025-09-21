@@ -8,6 +8,8 @@
 <title>JAL Sutra - Water Quality Monitoring</title>
 <link href="data:image/x-icon;base64," rel="icon" type="image/x-icon"/>
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style type="text/tailwindcss">
       :root {
         --primary-color: #1193d4;
@@ -51,8 +53,28 @@
 <main class="flex flex-1 justify-center py-10">
 <div class="layout-content-container flex flex-col max-w-7xl flex-1">
 <h2 class="text-white text-3xl font-bold tracking-[-0.015em] mb-6 text-center">Water Quality Map</h2>
-<div class="glassmorphism rounded-2xl p-6 min-h-[500px] flex items-center justify-center">
-<p class="text-gray-400">Interactive Map will be displayed here.</p>
+<div class="glassmorphism rounded-2xl p-6 min-h-[600px] relative">
+<div id="map" class="w-full h-[550px] rounded-lg"></div>
+<!-- Loading overlay -->
+<div id="loadingOverlay" class="absolute inset-0 bg-black bg-opacity-50 rounded-lg flex items-center justify-center hidden">
+  <div class="text-white text-center">
+    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-2"></div>
+    <p>Loading water quality data...</p>
+  </div>
+</div>
+</div>
+
+<!-- Water Quality Statistics Modal -->
+<div id="statsModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+  <div class="glassmorphism rounded-2xl p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="text-xl font-bold text-white">Water Quality Statistics</h3>
+      <button id="closeModal" class="text-gray-400 hover:text-white text-2xl">&times;</button>
+    </div>
+    <div id="statsContent" class="text-white">
+      <!-- Stats content will be populated here -->
+    </div>
+  </div>
 </div>
 </div>
 </main>

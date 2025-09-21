@@ -276,6 +276,120 @@ app.delete('/api/readings/:id', authenticateToken, async (req, res) => {
   }
 });
 
+// Get readings by location radius
+app.get('/api/readings/location', async (req, res) => {
+  try {
+    const { lat, lng, radius } = req.query;
+    
+    if (!lat || !lng) {
+      return res.status(400).json({ message: 'Latitude and longitude are required' });
+    }
+    
+    const radiusKm = parseFloat(radius) || 1; // Default 1km radius
+    const latitude = parseFloat(lat);
+    const longitude = parseFloat(lng);
+    
+    // For now, get all readings and filter by location string matching
+    // In a real implementation, you'd use geospatial queries with proper coordinates
+    const allReadings = await readingOperations.findAll();
+    
+    // Calculate water hardness and quality indices for each reading
+    const standards = { 
+      lead: 0.01, 
+      cadmium: 0.003, 
+      chromium: 0.05, 
+      arsenic: 0.01, 
+      mercury: 0.006 
+    };
+    
+    const enrichedReadings = allReadings.map(reading => {
+      const concentrations = {
+        lead: reading.lead || 0,
+        cadmium: reading.cadmium || 0,
+        chromium: reading.chromium || 0,
+        arsenic: reading.arsenic || 0,
+        mercury: reading.mercury || 0
+      };
+      
+      // Calculate Heavy Metal Pollution Index (HPI)
+      let sumWQi = 0, sumW = 0, hei = 0, cd = 0, sumCS = 0;
+      const metals = Object.keys(standards);
+      
+      metals.forEach(metal => {
+        const C = concentrations[metal];
+        const S = standards[metal];
+        const W = 1 / S;
+        const Q = (C / S) * 100;
+        
+        sumWQi += W * Q;
+        sumW += W;
+        hei += C / S;
+        cd += (C / S) - 1;
+        sumCS += C / S;
+      });
+      
+      const hpi = sumW > 0 ? sumWQi / sumW : 0;
+      const mcd = sumCS / metals.length;
+      
+      // Calculate water hardness based on metal concentrations
+      // Using a simplified formula: sum of major contributors
+      const hardness = (concentrations.lead * 10) + 
+                      (concentrations.cadmium * 15) + 
+                      (concentrations.chromium * 5) + 
+                      (concentrations.arsenic * 12) + 
+                      (concentrations.mercury * 20);
+      
+      let hardnessCategory = 'Soft';
+      if (hardness > 300) hardnessCategory = 'Very Hard';
+      else if (hardness > 180) hardnessCategory = 'Hard';
+      else if (hardness > 60) hardnessCategory = 'Moderately Hard';
+      
+      return {
+        ...reading.toObject(),
+        water_quality_indices: {
+          hpi: hpi,
+          hei: hei,
+          cd: cd,
+          mcd: mcd
+        },
+        water_hardness: {
+          value: hardness,
+          category: hardnessCategory,
+          unit: 'mg/L CaCO3 equivalent'
+        },
+        concentrations: concentrations
+      };
+    });
+    
+    // For demo purposes, return all enriched readings
+    // In real implementation, filter by actual coordinates
+    const nearbyReadings = enrichedReadings;
+    
+    // Calculate aggregate statistics for the area
+    const areaStats = {
+      total_samples: nearbyReadings.length,
+      avg_hardness: nearbyReadings.reduce((sum, r) => sum + r.water_hardness.value, 0) / nearbyReadings.length || 0,
+      hardness_distribution: {
+        soft: nearbyReadings.filter(r => r.water_hardness.category === 'Soft').length,
+        moderately_hard: nearbyReadings.filter(r => r.water_hardness.category === 'Moderately Hard').length,
+        hard: nearbyReadings.filter(r => r.water_hardness.category === 'Hard').length,
+        very_hard: nearbyReadings.filter(r => r.water_hardness.category === 'Very Hard').length
+      },
+      avg_pollution_index: nearbyReadings.reduce((sum, r) => sum + r.water_quality_indices.hpi, 0) / nearbyReadings.length || 0
+    };
+    
+    res.json({
+      message: `Found ${nearbyReadings.length} readings within ${radiusKm}km radius`,
+      location: { latitude, longitude, radius: radiusKm },
+      area_statistics: areaStats,
+      readings: nearbyReadings
+    });
+  } catch (error) {
+    console.error('Error fetching location-based readings:', error);
+    res.status(500).json({ message: 'Failed to fetch readings for location' });
+  }
+});
+
 // Analytics endpoint
 app.get('/api/analytics', async (req, res) => {
   try {
