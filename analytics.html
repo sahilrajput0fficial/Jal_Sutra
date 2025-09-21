@@ -50,13 +50,479 @@
 </header>
 <main class="flex flex-1 justify-center py-10">
 <div class="layout-content-container flex flex-col max-w-7xl flex-1">
-<h2 class="text-white text-3xl font-bold tracking-[-0.015em] mb-6 text-center">Analytics Dashboard</h2>
-<div class="glassmorphism rounded-2xl p-6 min-h-[500px] flex items-center justify-center">
-<p class="text-gray-400">Analytics charts and data visualizations will be displayed here.</p>
+<h2 class="text-white text-3xl font-bold tracking-[-0.015em] mb-6 text-center">Water Quality Analytics Dashboard</h2>
+
+<!-- Loading State -->
+<div id="loading" class="glassmorphism rounded-2xl p-6 min-h-[200px] flex items-center justify-center mb-6">
+<div class="flex items-center gap-3">
+<div class="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--primary-color)]"></div>
+<p class="text-gray-400">Loading analytics data...</p>
 </div>
+</div>
+
+<!-- Error State -->
+<div id="error" class="glassmorphism rounded-2xl p-6 min-h-[200px] flex items-center justify-center mb-6 hidden">
+<div class="text-center">
+<p class="text-red-400 mb-4">Failed to load analytics data</p>
+<button onclick="loadAnalytics()" class="px-4 py-2 bg-[var(--primary-color)] text-white rounded-lg hover:bg-[var(--teal-color)] transition-colors">Retry</button>
+</div>
+</div>
+
+<!-- Analytics Content -->
+<div id="analytics-content" class="hidden">
+
+<!-- Summary Cards -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+<div class="glassmorphism rounded-xl p-6 text-center">
+<div class="text-3xl font-bold text-[var(--primary-color)]" id="total-samples">0</div>
+<p class="text-gray-400 mt-2">Total Samples</p>
+</div>
+<div class="glassmorphism rounded-xl p-6 text-center">
+<div class="text-3xl font-bold text-[var(--accent-color)]" id="hpi-value">0</div>
+<p class="text-gray-400 mt-2">HPI Index</p>
+<p class="text-xs mt-1" id="hpi-interpretation">-</p>
+</div>
+<div class="glassmorphism rounded-xl p-6 text-center">
+<div class="text-3xl font-bold text-yellow-400" id="hei-value">0</div>
+<p class="text-gray-400 mt-2">HEI Index</p>
+<p class="text-xs mt-1" id="hei-interpretation">-</p>
+</div>
+<div class="glassmorphism rounded-xl p-6 text-center">
+<div class="text-3xl font-bold text-purple-400" id="mcd-value">0</div>
+<p class="text-gray-400 mt-2">mCd Index</p>
+<p class="text-xs mt-1" id="mcd-interpretation">-</p>
+</div>
+</div>
+
+<!-- Metal Concentrations Analysis -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+<div class="glassmorphism rounded-2xl p-6">
+<h3 class="text-xl font-bold text-white mb-6">Average Metal Concentrations</h3>
+<div class="space-y-4">
+<div class="metal-bar" data-metal="lead">
+<div class="flex justify-between items-center mb-2">
+<span class="text-gray-300">Lead (Pb)</span>
+<span class="text-white font-mono" id="lead-avg">0.000 mg/L</span>
+</div>
+<div class="bg-gray-700 rounded-full h-3">
+<div class="bg-gradient-to-r from-red-500 to-red-400 h-3 rounded-full transition-all duration-1000" id="lead-bar"></div>
+</div>
+<div class="text-xs text-gray-400 mt-1">Standard: 0.01 mg/L | Status: <span id="lead-status">-</span></div>
+</div>
+
+<div class="metal-bar" data-metal="cadmium">
+<div class="flex justify-between items-center mb-2">
+<span class="text-gray-300">Cadmium (Cd)</span>
+<span class="text-white font-mono" id="cadmium-avg">0.000 mg/L</span>
+</div>
+<div class="bg-gray-700 rounded-full h-3">
+<div class="bg-gradient-to-r from-orange-500 to-orange-400 h-3 rounded-full transition-all duration-1000" id="cadmium-bar"></div>
+</div>
+<div class="text-xs text-gray-400 mt-1">Standard: 0.003 mg/L | Status: <span id="cadmium-status">-</span></div>
+</div>
+
+<div class="metal-bar" data-metal="chromium">
+<div class="flex justify-between items-center mb-2">
+<span class="text-gray-300">Chromium (Cr)</span>
+<span class="text-white font-mono" id="chromium-avg">0.000 mg/L</span>
+</div>
+<div class="bg-gray-700 rounded-full h-3">
+<div class="bg-gradient-to-r from-yellow-500 to-yellow-400 h-3 rounded-full transition-all duration-1000" id="chromium-bar"></div>
+</div>
+<div class="text-xs text-gray-400 mt-1">Standard: 0.05 mg/L | Status: <span id="chromium-status">-</span></div>
+</div>
+
+<div class="metal-bar" data-metal="arsenic">
+<div class="flex justify-between items-center mb-2">
+<span class="text-gray-300">Arsenic (As)</span>
+<span class="text-white font-mono" id="arsenic-avg">0.000 mg/L</span>
+</div>
+<div class="bg-gray-700 rounded-full h-3">
+<div class="bg-gradient-to-r from-green-500 to-green-400 h-3 rounded-full transition-all duration-1000" id="arsenic-bar"></div>
+</div>
+<div class="text-xs text-gray-400 mt-1">Standard: 0.01 mg/L | Status: <span id="arsenic-status">-</span></div>
+</div>
+
+<div class="metal-bar" data-metal="mercury">
+<div class="flex justify-between items-center mb-2">
+<span class="text-gray-300">Mercury (Hg)</span>
+<span class="text-white font-mono" id="mercury-avg">0.000 mg/L</span>
+</div>
+<div class="bg-gray-700 rounded-full h-3">
+<div class="bg-gradient-to-r from-blue-500 to-blue-400 h-3 rounded-full transition-all duration-1000" id="mercury-bar"></div>
+</div>
+<div class="text-xs text-gray-400 mt-1">Standard: 0.006 mg/L | Status: <span id="mercury-status">-</span></div>
+</div>
+</div>
+</div>
+
+<div class="glassmorphism rounded-2xl p-6">
+<h3 class="text-xl font-bold text-white mb-6">Water Quality Indices</h3>
+<div class="space-y-6">
+<div class="index-card">
+<div class="flex justify-between items-center mb-3">
+<span class="text-gray-300 font-medium">Heavy Metal Pollution Index (HPI)</span>
+<span class="text-2xl font-bold text-[var(--accent-color)]" id="hpi-detailed">0.00</span>
+</div>
+<div class="bg-gray-700 rounded-full h-4 mb-2">
+<div class="bg-gradient-to-r from-[var(--accent-color)] to-[var(--primary-color)] h-4 rounded-full transition-all duration-1000" id="hpi-progress"></div>
+</div>
+<p class="text-sm text-gray-400" id="hpi-description">Calculating...</p>
+</div>
+
+<div class="index-card">
+<div class="flex justify-between items-center mb-3">
+<span class="text-gray-300 font-medium">Heavy Metal Evaluation Index (HEI)</span>
+<span class="text-2xl font-bold text-yellow-400" id="hei-detailed">0.00</span>
+</div>
+<div class="bg-gray-700 rounded-full h-4 mb-2">
+<div class="bg-gradient-to-r from-yellow-500 to-yellow-400 h-4 rounded-full transition-all duration-1000" id="hei-progress"></div>
+</div>
+<p class="text-sm text-gray-400" id="hei-description">Calculating...</p>
+</div>
+
+<div class="index-card">
+<div class="flex justify-between items-center mb-3">
+<span class="text-gray-300 font-medium">Contamination Degree (Cd)</span>
+<span class="text-2xl font-bold text-red-400" id="cd-detailed">0.00</span>
+</div>
+<div class="bg-gray-700 rounded-full h-4 mb-2">
+<div class="bg-gradient-to-r from-red-500 to-red-400 h-4 rounded-full transition-all duration-1000" id="cd-progress"></div>
+</div>
+<p class="text-sm text-gray-400" id="cd-description">Calculating...</p>
+</div>
+
+<div class="index-card">
+<div class="flex justify-between items-center mb-3">
+<span class="text-gray-300 font-medium">Modified Contamination Degree (mCd)</span>
+<span class="text-2xl font-bold text-purple-400" id="mcd-detailed">0.00</span>
+</div>
+<div class="bg-gray-700 rounded-full h-4 mb-2">
+<div class="bg-gradient-to-r from-purple-500 to-purple-400 h-4 rounded-full transition-all duration-1000" id="mcd-progress"></div>
+</div>
+<p class="text-sm text-gray-400" id="mcd-description">Calculating...</p>
+</div>
+</div>
+</div>
+</div>
+
+<!-- Statistical Summary -->
+<div class="glassmorphism rounded-2xl p-6 mb-8">
+<h3 class="text-xl font-bold text-white mb-6">Statistical Summary</h3>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+<div>
+<h4 class="text-lg font-semibold text-gray-300 mb-4">Maximum Values</h4>
+<div class="space-y-2 text-sm">
+<div class="flex justify-between"><span class="text-gray-400">Lead:</span><span id="max-lead" class="text-white font-mono">0.000 mg/L</span></div>
+<div class="flex justify-between"><span class="text-gray-400">Cadmium:</span><span id="max-cadmium" class="text-white font-mono">0.000 mg/L</span></div>
+<div class="flex justify-between"><span class="text-gray-400">Chromium:</span><span id="max-chromium" class="text-white font-mono">0.000 mg/L</span></div>
+<div class="flex justify-between"><span class="text-gray-400">Arsenic:</span><span id="max-arsenic" class="text-white font-mono">0.000 mg/L</span></div>
+<div class="flex justify-between"><span class="text-gray-400">Mercury:</span><span id="max-mercury" class="text-white font-mono">0.000 mg/L</span></div>
+</div>
+</div>
+<div>
+<h4 class="text-lg font-semibold text-gray-300 mb-4">Minimum Values</h4>
+<div class="space-y-2 text-sm">
+<div class="flex justify-between"><span class="text-gray-400">Lead:</span><span id="min-lead" class="text-white font-mono">0.000 mg/L</span></div>
+<div class="flex justify-between"><span class="text-gray-400">Cadmium:</span><span id="min-cadmium" class="text-white font-mono">0.000 mg/L</span></div>
+<div class="flex justify-between"><span class="text-gray-400">Chromium:</span><span id="min-chromium" class="text-white font-mono">0.000 mg/L</span></div>
+<div class="flex justify-between"><span class="text-gray-400">Arsenic:</span><span id="min-arsenic" class="text-white font-mono">0.000 mg/L</span></div>
+<div class="flex justify-between"><span class="text-gray-400">Mercury:</span><span id="min-mercury" class="text-white font-mono">0.000 mg/L</span></div>
+</div>
+</div>
+<div>
+<h4 class="text-lg font-semibold text-gray-300 mb-4">WHO Standards</h4>
+<div class="space-y-2 text-sm">
+<div class="flex justify-between"><span class="text-gray-400">Lead:</span><span class="text-yellow-400 font-mono">0.010 mg/L</span></div>
+<div class="flex justify-between"><span class="text-gray-400">Cadmium:</span><span class="text-yellow-400 font-mono">0.003 mg/L</span></div>
+<div class="flex justify-between"><span class="text-gray-400">Chromium:</span><span class="text-yellow-400 font-mono">0.050 mg/L</span></div>
+<div class="flex justify-between"><span class="text-gray-400">Arsenic:</span><span class="text-yellow-400 font-mono">0.010 mg/L</span></div>
+<div class="flex justify-between"><span class="text-gray-400">Mercury:</span><span class="text-yellow-400 font-mono">0.006 mg/L</span></div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- Overall Assessment -->
+<div class="glassmorphism rounded-2xl p-6">
+<h3 class="text-xl font-bold text-white mb-6">Overall Water Quality Assessment</h3>
+<div id="overall-assessment" class="space-y-4">
+<div class="p-4 rounded-lg border-l-4" id="assessment-card">
+<div class="flex items-center gap-3 mb-2">
+<div class="w-3 h-3 rounded-full" id="status-indicator"></div>
+<span class="font-semibold" id="overall-status">Analyzing...</span>
+</div>
+<p class="text-gray-400" id="assessment-description">Calculating water quality assessment...</p>
+<div class="mt-3">
+<div class="flex items-center gap-2 text-sm">
+<span class="text-gray-400">Risk Level:</span>
+<span id="risk-level" class="px-2 py-1 rounded text-xs font-medium">Calculating...</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+</div>
+
 </div>
 </main>
 </div>
 <script src="script.js"></script>
+<script>
+// Analytics Dashboard JavaScript
+const standards = {
+    lead: 0.01,
+    cadmium: 0.003,
+    chromium: 0.05,
+    arsenic: 0.01,
+    mercury: 0.006
+};
+
+// Load analytics data when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    loadAnalytics();
+});
+
+async function loadAnalytics() {
+    try {
+        const response = await fetch('https://jal-sutra.vercel.app/api/analytics');
+        
+        if (!response.ok) {
+            throw new Error('Failed to fetch analytics data');
+        }
+        
+        const result = await response.json();
+        const data = result.data;
+        
+        // Hide loading, show content
+        document.getElementById('loading').classList.add('hidden');
+        document.getElementById('error').classList.add('hidden');
+        document.getElementById('analytics-content').classList.remove('hidden');
+        
+        // Update summary cards
+        updateSummaryCards(data);
+        
+        // Update metal concentrations
+        updateMetalConcentrations(data);
+        
+        // Update indices
+        updateWaterQualityIndices(data);
+        
+        // Update statistical summary
+        updateStatisticalSummary(data);
+        
+        // Update overall assessment
+        updateOverallAssessment(data);
+        
+    } catch (error) {
+        console.error('Error loading analytics:', error);
+        document.getElementById('loading').classList.add('hidden');
+        document.getElementById('error').classList.remove('hidden');
+    }
+}
+
+function updateSummaryCards(data) {
+    document.getElementById('total-samples').textContent = data.total_samples || 0;
+    
+    if (data.calculated_indices) {
+        const hpi = data.calculated_indices.hpi || 0;
+        const hei = data.calculated_indices.hei || 0;
+        const mcd = data.calculated_indices.mcd || 0;
+        
+        document.getElementById('hpi-value').textContent = hpi.toFixed(1);
+        document.getElementById('hei-value').textContent = hei.toFixed(2);
+        document.getElementById('mcd-value').textContent = mcd.toFixed(2);
+        
+        // Add interpretations
+        document.getElementById('hpi-interpretation').textContent = getHPIInterpretation(hpi);
+        document.getElementById('hei-interpretation').textContent = getHEIInterpretation(hei);
+        document.getElementById('mcd-interpretation').textContent = getMCDInterpretation(mcd);
+    }
+}
+
+function updateMetalConcentrations(data) {
+    const metals = ['lead', 'cadmium', 'chromium', 'arsenic', 'mercury'];
+    
+    metals.forEach(metal => {
+        const avgValue = data[`avg_${metal}`] || 0;
+        const standard = standards[metal];
+        const percentage = Math.min((avgValue / standard) * 100, 100);
+        
+        // Update values
+        document.getElementById(`${metal}-avg`).textContent = `${avgValue.toFixed(4)} mg/L`;
+        
+        // Update progress bars
+        document.getElementById(`${metal}-bar`).style.width = `${percentage}%`;
+        
+        // Update status
+        const status = avgValue <= standard ? 'Safe' : 'Exceeded';
+        const statusElement = document.getElementById(`${metal}-status`);
+        statusElement.textContent = status;
+        statusElement.className = avgValue <= standard ? 'text-green-400' : 'text-red-400';
+    });
+}
+
+function updateWaterQualityIndices(data) {
+    if (!data.calculated_indices) return;
+    
+    const indices = data.calculated_indices;
+    
+    // HPI
+    const hpi = indices.hpi || 0;
+    document.getElementById('hpi-detailed').textContent = hpi.toFixed(2);
+    document.getElementById('hpi-progress').style.width = `${Math.min(hpi, 100)}%`;
+    document.getElementById('hpi-description').textContent = getHPIDescription(hpi);
+    
+    // HEI
+    const hei = indices.hei || 0;
+    document.getElementById('hei-detailed').textContent = hei.toFixed(2);
+    document.getElementById('hei-progress').style.width = `${Math.min((hei / 20) * 100, 100)}%`;
+    document.getElementById('hei-description').textContent = getHEIDescription(hei);
+    
+    // Cd (Contamination Degree)
+    const cd = indices.cd || 0;
+    document.getElementById('cd-detailed').textContent = cd.toFixed(2);
+    const cdPercentage = cd < 0 ? 0 : Math.min((cd / 10) * 100, 100);
+    document.getElementById('cd-progress').style.width = `${cdPercentage}%`;
+    document.getElementById('cd-description').textContent = getCdDescription(cd);
+    
+    // mCd
+    const mcd = indices.mcd || 0;
+    document.getElementById('mcd-detailed').textContent = mcd.toFixed(2);
+    document.getElementById('mcd-progress').style.width = `${Math.min((mcd / 16) * 100, 100)}%`;
+    document.getElementById('mcd-description').textContent = getMCDDescription(mcd);
+}
+
+function updateStatisticalSummary(data) {
+    const metals = ['lead', 'cadmium', 'chromium', 'arsenic', 'mercury'];
+    
+    metals.forEach(metal => {
+        const maxValue = data[`max_${metal}`] || 0;
+        const minValue = data[`min_${metal}`] || 0;
+        
+        document.getElementById(`max-${metal}`).textContent = `${maxValue.toFixed(4)} mg/L`;
+        document.getElementById(`min-${metal}`).textContent = `${minValue.toFixed(4)} mg/L`;
+    });
+}
+
+function updateOverallAssessment(data) {
+    if (!data.calculated_indices) return;
+    
+    const hpi = data.calculated_indices.hpi || 0;
+    const hei = data.calculated_indices.hei || 0;
+    const mcd = data.calculated_indices.mcd || 0;
+    
+    let overallStatus, riskLevel, description, statusColor, riskColor;
+    
+    // Determine overall status based on indices
+    if (hpi < 100 && hei < 10 && mcd < 1.5) {
+        overallStatus = 'Excellent Water Quality';
+        riskLevel = 'Low Risk';
+        description = 'Water quality is excellent with heavy metal concentrations well within safe limits.';
+        statusColor = 'text-green-400';
+        riskColor = 'bg-green-500 text-green-900';
+    } else if (hpi < 100 && hei < 20 && mcd < 2) {
+        overallStatus = 'Good Water Quality';
+        riskLevel = 'Low Risk';
+        description = 'Water quality is good. Heavy metal concentrations are within acceptable limits.';
+        statusColor = 'text-blue-400';
+        riskColor = 'bg-blue-500 text-blue-900';
+    } else if (hpi < 100 && hei < 20 && mcd < 4) {
+        overallStatus = 'Moderate Water Quality';
+        riskLevel = 'Medium Risk';
+        description = 'Water quality requires monitoring. Some heavy metal concentrations are elevated.';
+        statusColor = 'text-yellow-400';
+        riskColor = 'bg-yellow-500 text-yellow-900';
+    } else {
+        overallStatus = 'Poor Water Quality';
+        riskLevel = 'High Risk';
+        description = 'Water quality is concerning. Heavy metal concentrations exceed safe limits and require immediate attention.';
+        statusColor = 'text-red-400';
+        riskColor = 'bg-red-500 text-red-900';
+    }
+    
+    document.getElementById('overall-status').textContent = overallStatus;
+    document.getElementById('overall-status').className = `font-semibold ${statusColor}`;
+    document.getElementById('assessment-description').textContent = description;
+    document.getElementById('risk-level').textContent = riskLevel;
+    document.getElementById('risk-level').className = `px-2 py-1 rounded text-xs font-medium ${riskColor}`;
+    
+    // Update status indicator
+    const indicator = document.getElementById('status-indicator');
+    if (riskLevel === 'Low Risk') {
+        indicator.className = 'w-3 h-3 rounded-full bg-green-400';
+        document.getElementById('assessment-card').className = 'p-4 rounded-lg border-l-4 border-l-green-400';
+    } else if (riskLevel === 'Medium Risk') {
+        indicator.className = 'w-3 h-3 rounded-full bg-yellow-400';
+        document.getElementById('assessment-card').className = 'p-4 rounded-lg border-l-4 border-l-yellow-400';
+    } else {
+        indicator.className = 'w-3 h-3 rounded-full bg-red-400';
+        document.getElementById('assessment-card').className = 'p-4 rounded-lg border-l-4 border-l-red-400';
+    }
+}
+
+// Interpretation functions
+function getHPIInterpretation(hpi) {
+    if (hpi < 100) return 'Low Pollution';
+    return 'High Pollution';
+}
+
+function getHEIInterpretation(hei) {
+    if (hei < 10) return 'Low';
+    if (hei < 20) return 'Medium';
+    return 'High';
+}
+
+function getMCDInterpretation(mcd) {
+    if (mcd < 1.5) return 'Nil to Very Low';
+    if (mcd < 2) return 'Low';
+    if (mcd < 4) return 'Moderate';
+    if (mcd < 8) return 'High';
+    if (mcd < 16) return 'Very High';
+    return 'Ultra High';
+}
+
+// Description functions
+function getHPIDescription(hpi) {
+    if (hpi < 100) {
+        return 'Heavy metal pollution is low. Water quality is acceptable for consumption with standard treatment.';
+    }
+    return 'Heavy metal pollution is high. Water requires advanced treatment before consumption.';
+}
+
+function getHEIDescription(hei) {
+    if (hei < 10) {
+        return 'Low heavy metal evaluation index indicates minimal contamination risk.';
+    } else if (hei < 20) {
+        return 'Medium heavy metal evaluation index suggests moderate contamination that needs monitoring.';
+    }
+    return 'High heavy metal evaluation index indicates significant contamination requiring immediate action.';
+}
+
+function getCdDescription(cd) {
+    if (cd < 1) {
+        return 'Low contamination degree indicates minimal pollution from heavy metals.';
+    } else if (cd < 3) {
+        return 'Medium contamination degree suggests noticeable heavy metal contamination.';
+    }
+    return 'High contamination degree indicates severe heavy metal pollution requiring urgent intervention.';
+}
+
+function getMCDDescription(mcd) {
+    if (mcd < 1.5) {
+        return 'Nil to very low modified contamination degree - water quality is excellent.';
+    } else if (mcd < 2) {
+        return 'Low modified contamination degree - water quality is good.';
+    } else if (mcd < 4) {
+        return 'Moderate modified contamination degree - water quality requires monitoring.';
+    } else if (mcd < 8) {
+        return 'High modified contamination degree - water quality is concerning.';
+    } else if (mcd < 16) {
+        return 'Very high modified contamination degree - water quality is poor and needs treatment.';
+    }
+    return 'Ultra high modified contamination degree - water is severely contaminated and unsafe.';
+}
+</script>
 </body>
 </html>
