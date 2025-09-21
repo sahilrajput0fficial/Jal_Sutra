@@ -26,7 +26,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const statusMessage = document.getElementById('statusMessage');
 
             try {
-                const response = await fetch('https://jal-sutra.vercel.app/backend/login', {
+                const response = await fetch('/login', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -79,7 +79,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 };
                 
-                const response = await fetch(`https://jal-sutra.vercel.app//add-data`, {
+                const response = await fetch('/add-data', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'

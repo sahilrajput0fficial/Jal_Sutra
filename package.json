@@ -1,0 +1,30 @@
+{
+  "name": "jal-sutra",
+  "version": "1.0.0",
+  "description": "Water Quality Monitoring System - Heavy Metal Pollution Assessment",
+  "main": "api/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node api/index.js",
+    "dev": "vercel dev",
+    "build": "vercel build",
+    "deploy": "vercel --prod",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": ["water-quality", "monitoring", "pollution", "environment", "heavy-metals", "hpi", "hei"],
+  "author": "JAL Sutra Team",
+  "license": "MIT",
+  ],
+  "author": "",
+  "license": "ISC",
+  "description": "Backend API for JAL Sutra Water Quality Monitoring",
+  "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.2",
+    "express": "^5.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.18.1",
+    "morgan": "^1.10.1"
+  }
+}
