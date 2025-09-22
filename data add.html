@@ -52,7 +52,7 @@
 </head>
 <body class="bg-[var(--background)] text-[var(--on-surface)]" style="font-family: 'Space Grotesk', sans-serif;">
 <div class="flex min-h-screen">
-<aside class="w-72 p-6 flex flex-col justify-between bg-[var(--surface)] text-[var(--on-surface)]" style="perspective: 1000px;">
+<aside class="w-72 p-6 flex flex-col justify-between bg-[var(--surface)] text-[var(--on-surface)] border-r border-[var(--on-surface-variant)]/20" style="perspective: 1000px;">
 <div class="flex flex-col gap-8">
 <div class="flex items-center gap-4">
 <svg class="w-8 h-8 text-[var(--primary-600)]" fill="none" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
@@ -184,6 +184,19 @@
 </div>
 </div>
 </div>
+
+<!-- Batch Upload Section -->
+<div class="glassmorphism rounded-2xl p-6 flex flex-col gap-4 neomorphism-shadow mt-8">
+  <h3 class="text-2xl font-bold">Batch Upload (CSV/XLSX)</h3>
+  <p class="text-[var(--on-surface-variant)]">Upload a CSV or Excel file with columns: sampleId, date, depth, location, latitude, longitude, lead, cadmium, chromium, arsenic, mercury. Values for metals should be in mg/L (the uploader can accept µg/L or ppm if you include columns like leadUnit, cadmiumUnit, etc.)</p>
+  <div class="flex items-center gap-3 flex-wrap">
+    <input type="file" id="batchFile" accept=".csv,.xlsx,.xls" class="file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-[var(--primary-700)] file:text-white hover:file:bg-[var(--primary-600)]" />
+    <button id="uploadBatch" class="btn-animated px-4 py-2 rounded-lg bg-[var(--primary-600)] hover:bg-[var(--primary-500)] text-white font-bold">Upload</button>
+    <button id="downloadTemplate" class="px-4 py-2 rounded-lg border border-[var(--on-surface-variant)]/30 hover:bg-[var(--surface)]">Download Template (CSV)</button>
+  </div>
+  <div id="batchStatus" class="text-sm mt-2"></div>
+</div>
+
 <div class="pt-4 flex justify-end">
 <button class="btn-animated w-full md:w-auto flex items-center justify-center gap-2 rounded-lg h-11 px-6 bg-[var(--primary-600)] hover:bg-[var(--primary-500)] text-white font-bold" id="submitButton" type="submit">
 <span class="material-symbols-outlined">add_box</span>
@@ -196,6 +209,110 @@
 </div>
 </main>
 </div>
+<!-- CSV/XLSX parsers -->
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script>
+(async function(){
+    const token = localStorage.getItem('auth_token');
+    if (!token) { window.location.href = 'login.html'; return; }
+    try {
+      const res = await fetch('/api/me', { headers: { 'Authorization': `Bearer ${token}` } });
+      if (!res.ok) { window.location.href = 'login.html'; return; }
+      // Any authenticated user (role 'user' or 'admin') can access Add Data
+    } catch (_) {
+      window.location.href = 'login.html'; return;
+    }
+  })();
+  (function(){
+    const fileInput = document.getElementById('batchFile');
+    const uploadBtn = document.getElementById('uploadBatch');
+    const statusEl = document.getElementById('batchStatus');
+    const tmplBtn = document.getElementById('downloadTemplate');
+
+    function setStatus(msg, ok){
+      statusEl.textContent = msg;
+      statusEl.style.color = ok ? '#34d399' : '#f87171';
+    }
+
+    function toMgL(value, unit){
+      const v = parseFloat(value)||0;
+      if(!unit || unit==='mg/L') return v;
+      if(unit==='µg/L') return v/1000;
+      if(unit==='ppm') return v;
+      return v;
+    }
+
+    tmplBtn?.addEventListener('click', () => {
+      const headers = ['sampleId','date','depth','location','latitude','longitude','lead','cadmium','chromium','arsenic','mercury'];
+      const csv = headers.join(',') + '\n';
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'jal_sutra_template.csv';
+      a.click();
+      URL.revokeObjectURL(a.href);
+    });
+
+    uploadBtn?.addEventListener('click', async () => {
+      if(!fileInput.files || fileInput.files.length===0){ setStatus('Please choose a file to upload', false); return; }
+      const file = fileInput.files[0];
+      setStatus('Parsing file...', true);
+      const ext = file.name.toLowerCase().split('.').pop();
+      try{
+        let rows = [];
+        if(ext==='csv'){
+          const parsed = await new Promise((resolve, reject)=>{
+            Papa.parse(file, { header: true, skipEmptyLines: true, complete: resolve, error: reject });
+          });
+          rows = parsed.data;
+        } else {
+          const data = await file.arrayBuffer();
+          const wb = XLSX.read(data, { type: 'array' });
+          const ws = wb.Sheets[wb.SheetNames[0]];
+          rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+        }
+
+        if(!rows.length){ setStatus('No rows found in file.', false); return; }
+
+        const readings = rows.map(r => {
+          const metals = {
+            lead: toMgL(r.lead, r.leadUnit),
+            cadmium: toMgL(r.cadmium, r.cadmiumUnit),
+            chromium: toMgL(r.chromium, r.chromiumUnit),
+            arsenic: toMgL(r.arsenic, r.arsenicUnit),
+            mercury: toMgL(r.mercury, r.mercuryUnit),
+          };
+          return {
+            sampleId: r.sampleId || r.sample_id || r.SampleID || r.SampleId,
+            date: r.date || r.Date,
+            depth: r.depth || r.Depth || 0,
+            location: r.location || r.Location,
+            latitude: r.latitude || r.lat || r.Latitude,
+            longitude: r.longitude || r.lng || r.Longitude,
+            metals
+          };
+        });
+
+        const res = await fetch('/api/readings/batch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ readings })
+        });
+
+        if(!res.ok){
+          const err = await res.json().catch(()=>({message:'Upload failed'}));
+          setStatus(err.message || 'Upload failed', false);
+          return;
+        }
+        const out = await res.json();
+        setStatus(out.message || 'Batch upload complete', true);
+      } catch(e){
+        setStatus(e.message, false);
+      }
+    });
+  })();
+</script>
 <script src="script.js"></script>
 </body>
 </html>

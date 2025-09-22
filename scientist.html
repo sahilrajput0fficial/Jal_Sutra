@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>JAL Sutra - Scientist Profile</title>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+  <style type="text/tailwindcss">
+    :root{ --background-color:#111618; --accent-color:#00f5d4; --primary-color:#1193d4; }
+    body{ background-color:var(--background-color); font-family:'Space Grotesk', sans-serif; }
+    .glass{ background:rgba(28,35,39,.5); backdrop-filter:blur(10px); border:1px solid rgba(40,51,57,.3); }
+    .label{ @apply text-sm text-gray-400; }
+    .input{ @apply w-full px-4 py-2 rounded-lg bg-[#1c2327] text-white border border-[#3b4b54] focus:ring-2 focus:ring-[#1193d4] focus:border-[#1193d4]; }
+  </style>
+</head>
+<body class="text-white">
+  <header class="sticky top-0 z-10 glass border-b border-[#283339] px-6 py-4">
+    <div class="max-w-5xl mx-auto flex items-center justify-between">
+      <a href="home.html" class="flex items-center gap-2">
+        <svg class="h-7 w-7 text-[var(--primary-color)]" fill="none" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><path d="M24 4C25.7818 14.2173 33.7827 22.2182 44 24C33.7827 25.7818 25.7818 33.7827 24 44C22.2182 33.7827 14.2173 25.7818 4 24C14.2173 22.2182 22.2182 14.2173 24 4Z" fill="currentColor"></path></svg>
+        <h1 class="text-xl font-bold">JAL Sutra</h1>
+      </a>
+<nav class="flex gap-3 text-gray-300 items-center">
+        <a class="hover:text-white px-3 py-1 rounded border border-transparent hover:border-[#3b4b54]" href="dashboard.html">Dashboard</a>
+        <a class="hover:text-white px-3 py-1 rounded border border-transparent hover:border-[#3b4b54]" href="data add.html">Add Data</a>
+        <a class="hover:text-white px-3 py-1 rounded border border-transparent hover:border-[#3b4b54]" href="scientist.html">Profile</a>
+        <button id="logoutBtn" class="ml-2 px-3 py-1 rounded border border-[#3b4b54] text-gray-300 hover:text-white hover:bg-[#1c2327]">Logout</button>
+      </nav>
+    </div>
+  </header>
+  <main class="max-w-5xl mx-auto p-6">
+    <h2 class="text-3xl font-bold mb-6">Scientist Profile</h2>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <section class="glass rounded-2xl p-6 lg:col-span-1">
+        <div class="flex flex-col items-center text-center">
+          <div class="h-24 w-24 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 mb-4"></div>
+          <h3 id="nameDisplay" class="text-xl font-semibold">—</h3>
+          <p id="titleDisplay" class="text-gray-400">—</p>
+          <p id="orgDisplay" class="text-gray-400 mt-1">—</p>
+          <p id="locDisplay" class="text-gray-400 mt-1">—</p>
+          <div class="mt-4 w-full text-left">
+            <h4 class="text-[var(--accent-color)] font-semibold mb-2">Areas of Expertise</h4>
+            <ul id="expertiseList" class="list-disc list-inside text-gray-300 space-y-1">
+            </ul>
+          </div>
+          <div class="mt-4 w-full">
+            <h4 class="text-[var(--accent-color)] font-semibold mb-2">Bio</h4>
+            <p id="bioDisplay" class="text-gray-300 text-sm">—</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="glass rounded-2xl p-6 lg:col-span-2">
+        <h3 class="text-xl font-semibold mb-4">Edit Profile</h3>
+        <form id="profileForm" class="space-y-4">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="label" for="name">Full Name</label>
+              <input class="input" id="name" type="text" />
+            </div>
+            <div>
+              <label class="label" for="title">Title/Role</label>
+              <input class="input" id="title" type="text" />
+            </div>
+            <div>
+              <label class="label" for="organization">Organization</label>
+              <input class="input" id="organization" type="text" />
+            </div>
+            <div>
+              <label class="label" for="email">Email</label>
+              <input class="input" id="email" type="email" />
+            </div>
+            <div>
+              <label class="label" for="phone">Phone</label>
+              <input class="input" id="phone" type="text" />
+            </div>
+            <div>
+              <label class="label" for="website">Website</label>
+              <input class="input" id="website" type="text" />
+            </div>
+            <div>
+              <label class="label" for="location">Location</label>
+              <input class="input" id="location" type="text" />
+            </div>
+            <div class="md:col-span-2">
+              <label class="label" for="expertise">Expertise (comma-separated)</label>
+              <input class="input" id="expertise" type="text" placeholder="Water Quality, Heavy Metals, ..." />
+            </div>
+            <div class="md:col-span-2">
+              <label class="label" for="bio">Bio</label>
+              <textarea class="input" id="bio" rows="4"></textarea>
+            </div>
+          </div>
+          <div class="flex justify-end gap-3 pt-2">
+            <button type="button" id="refreshBtn" class="px-4 py-2 rounded-lg border border-[#3b4b54]">Refresh</button>
+            <button type="submit" class="px-5 py-2 rounded-lg bg-[var(--primary-color)] hover:bg-[var(--primary-color)]/90 font-semibold">Save</button>
+          </div>
+          <div id="saveStatus" class="text-sm mt-2"></div>
+        </form>
+      </section>
+    </div>
+  </main>
+
+  <script>
+async function ensureScientist() {
+      const token = localStorage.getItem('auth_token');
+      if (!token) { window.location.href = 'login.html'; return false; }
+      try {
+        const res = await fetch('/api/me', { headers: { 'Authorization': `Bearer ${token}` } });
+        if (!res.ok) { window.location.href = 'login.html'; return false; }
+        // Any authenticated user (role 'user' or 'admin') is allowed here
+        return true;
+      } catch {
+        window.location.href = 'login.html'; return false;
+      }
+    }
+
+async function loadProfile(){
+      const token = localStorage.getItem('auth_token');
+      const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+      const res = await fetch('/api/scientist/profile', { headers });
+      const out = await res.json();
+      const p = out.data || {};
+      const byId = id => document.getElementById(id);
+      byId('nameDisplay').textContent = p.name || '—';
+      byId('titleDisplay').textContent = p.title || '—';
+      byId('orgDisplay').textContent = p.organization || '—';
+      byId('locDisplay').textContent = p.location || '—';
+      byId('bioDisplay').textContent = p.bio || '—';
+
+      byId('name').value = p.name || '';
+      byId('title').value = p.title || '';
+      byId('organization').value = p.organization || '';
+      byId('email').value = p.email || '';
+      byId('phone').value = p.phone || '';
+      byId('website').value = p.website || '';
+      byId('location').value = p.location || '';
+      byId('bio').value = p.bio || '';
+      byId('expertise').value = (p.expertise||[]).join(', ');
+
+      const ul = document.getElementById('expertiseList');
+      ul.innerHTML = '';
+      (p.expertise||[]).forEach(e => {
+        const li = document.createElement('li');
+        li.textContent = e;
+        ul.appendChild(li);
+      });
+    }
+
+    document.getElementById('refreshBtn').addEventListener('click', loadProfile);
+
+    document.getElementById('profileForm').addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const saveStatus = document.getElementById('saveStatus');
+      saveStatus.textContent = 'Saving...'; saveStatus.style.color = '#9ca3af';
+      try{
+        const body = {
+          name: document.getElementById('name').value,
+          title: document.getElementById('title').value,
+          organization: document.getElementById('organization').value,
+          email: document.getElementById('email').value,
+          phone: document.getElementById('phone').value,
+          website: document.getElementById('website').value,
+          location: document.getElementById('location').value,
+          bio: document.getElementById('bio').value,
+          expertise: (document.getElementById('expertise').value||'').split(',').map(s=>s.trim()).filter(Boolean)
+        };
+        const headers = { 'Content-Type':'application/json' };
+        const token = localStorage.getItem('auth_token');
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+        const res = await fetch('/api/scientist/profile', { method:'PUT', headers, body: JSON.stringify(body) });
+        if(!res.ok){ const err = await res.json().catch(()=>({message:'Save failed'})); throw new Error(err.message||'Save failed'); }
+        await loadProfile();
+        saveStatus.textContent = 'Saved successfully'; saveStatus.style.color = '#34d399';
+      }catch(e){ saveStatus.textContent = e.message; saveStatus.style.color = '#f87171'; }
+    });
+
+    (async () => { if (await ensureScientist()) { await loadProfile(); } })();
+    document.getElementById('logoutBtn').addEventListener('click', () => {
+      try { localStorage.removeItem('auth_token'); localStorage.removeItem('auth_user'); } catch(_) {}
+      window.location.href = 'index.html';
+    });
+  </script>
+</body>
+</html>

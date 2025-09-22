@@ -1,8 +1,9 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import jwt from 'jsonwebtoken';
 
-import { initializeAdmin, readingOperations } from '../database-mongo.js';
+import { initializeAdmin, readingOperations, scientistProfileOperations } from '../database-mongo.js';
 import { loginUser, registerUser, authenticateToken } from '../auth.js';
 
 // Load environment variables
@@ -22,6 +23,9 @@ app.use(cors({
 }));
 app.use(express.json());
 
+// Serve static frontend files during local development
+app.use(express.static('.'));
+
 // Health check
 app.get('/api', (req, res) => {
   res.json({ 
@@ -36,6 +40,14 @@ app.get('/api/health', (req, res) => {
 });
 
 // Authentication Routes
+app.get('/api/me', authenticateToken, async (req, res) => {
+  try {
+    res.json({ message: 'User info', user: req.user });
+  } catch (e) {
+    res.status(500).json({ message: 'Failed to get user info' });
+  }
+});
+
 app.post('/api/login', async (req, res) => {
   try {
     const { username, password } = req.body;
@@ -117,7 +129,7 @@ app.post('/api/add-data', async (req, res) => {
   try {
     const { sampleId, date, depth, location, latitude, longitude, metals } = req.body;
     
-    if (!sampleId || !date || !location || !metals || latitude === undefined || longitude === undefined) {
+    if (!sampleId || !date || !location || !metals || latitude === undefined || !Number.isFinite(parseFloat(latitude)) || longitude === undefined || !Number.isFinite(parseFloat(longitude))) {
       return res.status(400).json({ 
         message: 'Missing required fields: sampleId, date, location, latitude, longitude, and metals are required' 
       });
@@ -125,6 +137,20 @@ app.post('/api/add-data', async (req, res) => {
 
     // Extract metal concentrations
     const { lead, cadmium, chromium, arsenic, mercury } = metals;
+
+    // Try to associate reading with the authenticated user if Authorization header is present
+    let userId = null;
+    try {
+      const authHeader = req.headers['authorization'] || req.headers['Authorization'];
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        const token = authHeader.split(' ')[1];
+        const secret = process.env.JWT_SECRET || '50edf28add8d3bd562a4f4814f4fc441';
+        const decoded = jwt.verify(token, secret);
+        userId = decoded?.id || null;
+      }
+    } catch (e) {
+      // ignore token errors for this unprotected route
+    }
     
     // Insert reading into database
     const newReading = await readingOperations.create(
@@ -139,7 +165,7 @@ app.post('/api/add-data', async (req, res) => {
       chromium || 0,
       arsenic || 0,
       mercury || 0,
-      null // user_id - set to null for now
+      userId
     );
     
     res.status(201).json({
@@ -157,7 +183,7 @@ app.post('/add-data', async (req, res) => {
   try {
     const { sampleId, date, depth, location, latitude, longitude, metals } = req.body;
     
-    if (!sampleId || !date || !location || !metals || latitude === undefined || longitude === undefined) {
+    if (!sampleId || !date || !location || !metals || latitude === undefined || !Number.isFinite(parseFloat(latitude)) || longitude === undefined || !Number.isFinite(parseFloat(longitude))) {
       return res.status(400).json({ 
         message: 'Missing required fields: sampleId, date, location, latitude, longitude, and metals are required' 
       });
@@ -165,6 +191,20 @@ app.post('/add-data', async (req, res) => {
 
     // Extract metal concentrations
     const { lead, cadmium, chromium, arsenic, mercury } = metals;
+
+    // Try to associate reading with the authenticated user if Authorization header is present
+    let userId = null;
+    try {
+      const authHeader = req.headers['authorization'] || req.headers['Authorization'];
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        const token = authHeader.split(' ')[1];
+        const secret = process.env.JWT_SECRET || '50edf28add8d3bd562a4f4814f4fc441';
+        const decoded = jwt.verify(token, secret);
+        userId = decoded?.id || null;
+      }
+    } catch (e) {
+      // ignore token errors for this unprotected route
+    }
     
     // Insert reading into database
     const newReading = await readingOperations.create(
@@ -179,7 +219,7 @@ app.post('/add-data', async (req, res) => {
       chromium || 0,
       arsenic || 0,
       mercury || 0,
-      null // user_id - set to null for now
+      userId
     );
     
     res.status(201).json({
@@ -203,6 +243,87 @@ app.get('/api/readings', async (req, res) => {
   } catch (error) {
     console.error('Error fetching readings:', error);
     res.status(500).json({ message: 'Failed to fetch readings' });
+  }
+});
+
+// Batch insert readings
+app.post('/api/readings/batch', async (req, res) => {
+  try {
+    const { readings } = req.body;
+
+    if (!Array.isArray(readings) || readings.length === 0) {
+      return res.status(400).json({ message: 'readings must be a non-empty array' });
+    }
+
+    // Basic validation and normalization
+    const normalized = readings.map((r, idx) => {
+      const errors = [];
+      if (!r.sampleId) errors.push('sampleId');
+      if (!r.date) errors.push('date');
+      if (!r.location) errors.push('location');
+      const lat = r.latitude !== undefined ? parseFloat(r.latitude) : undefined;
+      const lng = r.longitude !== undefined ? parseFloat(r.longitude) : undefined;
+      if (lat === undefined || Number.isNaN(lat)) errors.push('latitude');
+      if (lng === undefined || Number.isNaN(lng)) errors.push('longitude');
+      const metals = r.metals || {};
+      const lead = parseFloat(metals.lead) || 0;
+      const cadmium = parseFloat(metals.cadmium) || 0;
+      const chromium = parseFloat(metals.chromium) || 0;
+      const arsenic = parseFloat(metals.arsenic) || 0;
+      const mercury = parseFloat(metals.mercury) || 0;
+      if (errors.length) {
+        return { __error: { index: idx, missing: errors } };
+      }
+      return {
+        sample_id: r.sampleId,
+        date: r.date,
+        depth: parseFloat(r.depth) || 0,
+        location: r.location,
+        latitude: lat,
+        longitude: lng,
+        lead,
+        cadmium,
+        chromium,
+        arsenic,
+        mercury,
+        user_id: null
+      };
+    });
+
+    const invalid = normalized.filter(n => n.__error);
+    if (invalid.length) {
+      return res.status(400).json({ message: 'Validation failed for some rows', invalid });
+    }
+
+    const result = await readingOperations.bulkCreate(normalized);
+    res.status(201).json({ message: `Inserted ${result.insertedCount} readings`, data: result.docs });
+  } catch (error) {
+    console.error('Batch insert error:', error);
+    res.status(500).json({ message: 'Failed to insert readings in batch' });
+  }
+});
+
+// My readings (authenticated)
+app.get('/api/readings/my', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const readings = await readingOperations.findByUserId(userId);
+    res.json({ message: 'My readings retrieved successfully', data: readings });
+  } catch (error) {
+    console.error('Error fetching my readings:', error);
+    res.status(500).json({ message: 'Failed to fetch my readings' });
+  }
+});
+
+// My readings daily counts (authenticated)
+app.get('/api/readings/my/daily', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const counts = await readingOperations.countByDateForUser(userId);
+    res.json({ message: 'My daily counts retrieved successfully', data: counts });
+  } catch (error) {
+    console.error('Error fetching my daily counts:', error);
+    res.status(500).json({ message: 'Failed to fetch my daily counts' });
   }
 });
 
@@ -412,6 +533,28 @@ app.get('/api/readings/location', async (req, res) => {
   }
 });
 
+// Scientist profile endpoints (per-user)
+app.get('/api/scientist/profile', authenticateToken, async (req, res) => {
+  try {
+    const defaults = { name: req.user?.username };
+    const profile = await scientistProfileOperations.getOrCreateDefaultForUser(req.user.id, defaults);
+    res.json({ message: 'Profile retrieved successfully', data: profile });
+  } catch (error) {
+    console.error('Error fetching profile:', error);
+    res.status(500).json({ message: 'Failed to fetch profile' });
+  }
+});
+
+app.put('/api/scientist/profile', authenticateToken, async (req, res) => {
+  try {
+    const updated = await scientistProfileOperations.updateForUser(req.user.id, req.body || {});
+    res.json({ message: 'Profile updated successfully', data: updated });
+  } catch (error) {
+    console.error('Error updating profile:', error);
+    res.status(500).json({ message: 'Failed to update profile' });
+  }
+});
+
 // Analytics endpoint
 app.get('/api/analytics', async (req, res) => {
   try {
@@ -482,5 +625,14 @@ app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ message: 'Something went wrong!' });
 });
+
+// Start local server only when not running on Vercel/production
+const shouldListen = !process.env.VERCEL && process.env.NODE_ENV !== 'production';
+if (shouldListen) {
+  const port = process.env.PORT || 5050;
+  app.listen(port, () => {
+    console.log(`JAL Sutra server running on http://localhost:${port}`);
+  });
+}
 
 export default app;

@@ -49,10 +49,15 @@
       transform: translateY(-3px); box-shadow: 0 10px 20px rgba(0, 188, 212, 0.3);
     }
 </style>
+<style>
+  /* Calendar cell hover and today highlight */
+  .cal-cell { transition: background-color 0.2s ease, transform 0.1s ease; }
+  .cal-cell:hover { transform: translateY(-1px); }
+</style>
 </head>
-<body class="bg-[var(--background)] text-[var(--on-surface)]">
-<div class="flex h-screen overflow-hidden">
-<aside class="flex w-64 flex-col bg-[var(--surface)] text-[var(--on-surface)] p-4 border-r border-[var(--on-surface-variant)]/20">
+<body class="bg-[var(--background)] text-[var(--on-surface)]" style="font-family: 'Space Grotesk', sans-serif;">
+<div class="flex min-h-screen">
+<aside class="w-72 p-6 flex flex-col justify-between bg-[var(--surface)] text-[var(--on-surface)] border-r border-[var(--on-surface-variant)]/20">
 <div class="flex items-center gap-3 mb-8">
 <svg class="w-8 h-8 text-[var(--primary-600)]" fill="none" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
 <path d="M24 4C25.7818 14.2173 33.7827 22.2182 44 24C33.7827 25.7818 25.7818 33.7827 24 44C22.2182 33.7827 14.2173 25.7818 4 24C14.2173 22.2182 22.2182 14.2173 24 4Z" fill="currentColor"></path>
@@ -76,24 +81,145 @@
 </aside>
 <main class="flex-1 p-8 overflow-y-auto">
 <div class="bg-[var(--surface)] rounded-2xl p-6 min-h-full">
-<h2 class="text-4xl font-bold mb-8">Welcome back, Dr. Sharma!</h2>
-<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-<div class="lg:col-span-3 glassmorphism rounded-2xl p-6 flex items-center gap-6 neomorphism-shadow">
-<div class="flex-1">
-<h3 class="text-2xl font-bold text-[var(--primary-300)]">Scientist Profile</h3>
-<p class="text-[var(--on-surface-variant)] mt-1">Government ID: 1234567890</p>
-<p class="text-[var(--on-surface)] mt-4">Overseeing critical water sources. Your dedication ensures public safety and environmental health.</p>
-<button class="btn-animated mt-6 flex items-center justify-center gap-2 rounded-lg h-11 px-6 bg-[var(--primary-600)] hover:bg-[var(--primary-500)] text-white font-bold">
-<span>View Full Profile</span>
-<span class="material-symbols-outlined">arrow_forward</span>
-</button>
-</div>
-<div class="hidden md:block w-64 h-40 rounded-xl bg-cover bg-center" style='background-image: url("https://lh3.googleusercontent.com/u/0/d/1g1Q-K5bY_gG2p8GqYQ_kG1K5_r-G_jJ_");'></div>
-</div>
-</div>
+  <h2 class="text-4xl font-bold mb-8">Scientist Dashboard</h2>
+
+  <!-- Summary Cards -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+    <div class="glassmorphism rounded-xl p-6 text-center">
+      <div class="text-3xl font-bold text-[var(--primary-300)]" id="myTotalSamples">0</div>
+      <p class="text-[var(--on-surface-variant)] mt-1">My Samples</p>
+    </div>
+    <div class="glassmorphism rounded-xl p-6 text-center">
+      <div class="text-3xl font-bold text-[var(--primary-300)]" id="myThisMonth">0</div>
+      <p class="text-[var(--on-surface-variant)] mt-1">This Month</p>
+    </div>
+    <div class="glassmorphism rounded-xl p-6 text-center">
+      <div class="text-3xl font-bold text-[var(--primary-300)]" id="myLastAdded">—</div>
+      <p class="text-[var(--on-surface-variant)] mt-1">Last Added</p>
+    </div>
+  </div>
+
+  <!-- Calendar + Recent -->
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <div class="glassmorphism rounded-2xl p-6 lg:col-span-2">
+      <h3 class="text-xl font-bold text-[var(--primary-300)] mb-4">Submission Calendar</h3>
+      <div id="calendarHeader" class="flex items-center justify-between mb-3">
+        <button id="prevMonth" class="px-3 py-1 rounded border border-[var(--on-surface-variant)]/30">Prev</button>
+        <div id="monthLabel" class="font-semibold"></div>
+        <button id="nextMonth" class="px-3 py-1 rounded border border-[var(--on-surface-variant)]/30">Next</button>
+      </div>
+      <div class="grid grid-cols-7 gap-2 text-sm text-[var(--on-surface-variant)] mb-2">
+        <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
+      </div>
+      <div id="calendarGrid" class="grid grid-cols-7 gap-2"></div>
+      <div class="mt-3 flex items-center gap-3 text-xs text-[var(--on-surface-variant)]">
+        <span>Legend:</span>
+        <span class="px-2 py-1 rounded bg-[var(--on-surface-variant)]/10">0</span>
+        <span class="px-2 py-1 rounded bg-emerald-500/20">1-2</span>
+        <span class="px-2 py-1 rounded bg-emerald-500/40">3-5</span>
+        <span class="px-2 py-1 rounded bg-emerald-500/60">6+</span>
+      </div>
+    </div>
+    <div class="glassmorphism rounded-2xl p-6">
+      <h3 class="text-xl font-bold text-[var(--primary-300)] mb-4">Recent Submissions</h3>
+      <div id="recentList" class="space-y-3 text-sm"></div>
+      <div class="mt-4 flex gap-3">
+        <a href="data add.html" class="btn-animated flex-1 text-center rounded-lg h-11 px-6 bg-[var(--primary-600)] hover:bg-[var(--primary-500)] text-white font-bold">Add Data</a>
+        <a href="scientist.html" class="btn-animated flex-1 text-center rounded-lg h-11 px-6 bg-transparent border border-[var(--primary-600)] text-white font-bold">Profile</a>
+      </div>
+    </div>
+  </div>
 </div>
 </main>
 </div>
+<script>
+(async function(){
+  const token = localStorage.getItem('auth_token');
+  if (!token) { window.location.href = 'login.html'; return; }
+  try {
+    const res = await fetch('/api/me', { headers: { 'Authorization': `Bearer ${token}` } });
+    if (!res.ok) { window.location.href = 'login.html'; return; }
+    // Any authenticated user (role 'user' or 'admin') can use scientist tools
+  } catch (_) {
+    window.location.href = 'login.html';
+  }
+})();
+</script>
+<script>
+(async function(){
+  const token = localStorage.getItem('auth_token');
+  if (!token) return; // guard already checked above
+  try {
+    const headers = { 'Authorization': `Bearer ${token}` };
+    const [dailyRes, myRes] = await Promise.all([
+      fetch('/api/readings/my/daily', { headers }),
+      fetch('/api/readings/my', { headers })
+    ]);
+    if (!dailyRes.ok || !myRes.ok) return;
+    const daily = (await dailyRes.json()).data || [];
+    const my = (await myRes.json()).data || [];
+
+    // Summary
+    document.getElementById('myTotalSamples').textContent = my.length;
+    if (my.length > 0) {
+      const last = new Date(my[0].createdAt || my[0].date);
+      document.getElementById('myLastAdded').textContent = isNaN(last) ? (my[0].date || '—') : last.toISOString().split('T')[0];
+    }
+    const now = new Date();
+    const ym = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+    const monthCount = my.filter(r => (r.date || '').startsWith(ym)).length;
+    document.getElementById('myThisMonth').textContent = monthCount;
+
+    // Calendar data map
+    const dmap = new Map(daily.map(d => [d.date, d.count]));
+
+    // Calendar render
+    let current = new Date(now.getFullYear(), now.getMonth(), 1);
+    function renderCalendar() {
+      const year = current.getFullYear();
+      const month = current.getMonth();
+      const firstDay = new Date(year, month, 1);
+      const startWeekday = firstDay.getDay();
+      const daysInMonth = new Date(year, month+1, 0).getDate();
+      document.getElementById('monthLabel').textContent = firstDay.toLocaleString('default', { month: 'long', year: 'numeric' });
+      const grid = document.getElementById('calendarGrid');
+      grid.innerHTML = '';
+      for (let i=0;i<startWeekday;i++) {
+        const empty = document.createElement('div');
+        empty.className = 'h-16 rounded border border-transparent';
+        grid.appendChild(empty);
+      }
+      for (let day=1; day<=daysInMonth; day++) {
+        const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+        const count = dmap.get(dateStr) || 0;
+        const cell = document.createElement('div');
+        let intensity = '';
+        if (count >= 6) intensity = ' bg-emerald-500/60';
+        else if (count >= 3) intensity = ' bg-emerald-500/40';
+        else if (count >= 1) intensity = ' bg-emerald-500/20';
+        cell.className = 'cal-cell h-16 rounded border border-[var(--on-surface-variant)]/20 p-2 flex flex-col' + intensity;
+        const top = document.createElement('div');
+        let topCls = 'text-xs text-[var(--on-surface-variant)]';
+        const todayStr = new Date().toISOString().split('T')[0];
+        if (dateStr === todayStr) topCls += ' ring-1 ring-emerald-500 rounded px-1';
+        top.className = topCls;
+        top.textContent = day;
+        const badge = document.createElement('div');
+        if (count>0) {
+          badge.className = 'mt-auto text-xs px-2 py-1 rounded bg-[var(--primary-600)]/30 text-[var(--primary-50)] self-start';
+          badge.textContent = `${count} sample${count>1?'s':''}`;
+        }
+        cell.appendChild(top);
+        if (count>0) cell.appendChild(badge);
+        grid.appendChild(cell);
+      }
+    }
+    document.getElementById('prevMonth').addEventListener('click', ()=>{ current = new Date(current.getFullYear(), current.getMonth()-1, 1); renderCalendar(); });
+    document.getElementById('nextMonth').addEventListener('click', ()=>{ current = new Date(current.getFullYear(), current.getMonth()+1, 1); renderCalendar(); });
+    renderCalendar();
+  } catch (e) { /* ignore */ }
+})();
+</script>
 <script src="script.js"></script>
 </body>
 </html>

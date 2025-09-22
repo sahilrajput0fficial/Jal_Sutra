@@ -26,7 +26,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const statusMessage = document.getElementById('statusMessage');
 
             try {
-                const response = await fetch('https://jal-sutra.vercel.app/login', {
+                const response = await fetch('/login', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -35,11 +35,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
 
                 if (response.ok) {
+                    const resp = await response.json();
+                    if (resp && resp.token) {
+                        try { localStorage.setItem('auth_token', resp.token); } catch(_) {}
+                    }
+                    if (resp && resp.user) {
+                        try { localStorage.setItem('auth_user', JSON.stringify(resp.user)); } catch(_) {}
+                    }
                     statusMessage.textContent = 'Login successful! Redirecting...';
                     statusMessage.style.color = '#34d399';
                     setTimeout(() => {
+                        // Scientist Portal always routes to the Scientist Dashboard after login
                         window.location.href = 'dashboard.html';
-                    }, 1000);
+                    }, 800);
                 } else {
                     const errorData = await response.json();
                     statusMessage.textContent = errorData.message || 'Invalid username or password.';
@@ -65,6 +73,14 @@ document.addEventListener('DOMContentLoaded', () => {
             submitButton.disabled = true;
 
             try {
+                const toMgL = (value, unit) => {
+                    const v = parseFloat(value) || 0;
+                    if (!unit || unit === 'mg/L') return v;
+                    if (unit === 'µg/L') return v / 1000;
+                    if (unit === 'ppm') return v;
+                    return v;
+                };
+
                 const dataToSend = {
                     sampleId: document.getElementById('sampleId').value,
                     date: document.getElementById('date').value,
@@ -73,19 +89,20 @@ document.addEventListener('DOMContentLoaded', () => {
                     latitude: parseFloat(document.getElementById('latitude').value),
                     longitude: parseFloat(document.getElementById('longitude').value),
                     metals: {
-                        lead: parseFloat(document.getElementById('lead').value) || 0,
-                        cadmium: parseFloat(document.getElementById('cadmium').value) || 0,
-                        chromium: parseFloat(document.getElementById('chromium').value) || 0,
-                        arsenic: parseFloat(document.getElementById('arsenic').value) || 0,
-                        mercury: parseFloat(document.getElementById('mercury').value) || 0,
+                        lead: toMgL(document.getElementById('lead').value, document.getElementById('lead-unit')?.value),
+                        cadmium: toMgL(document.getElementById('cadmium').value, document.getElementById('cadmium-unit')?.value),
+                        chromium: toMgL(document.getElementById('chromium').value, document.getElementById('chromium-unit')?.value),
+                        arsenic: toMgL(document.getElementById('arsenic').value, document.getElementById('arsenic-unit')?.value),
+                        mercury: toMgL(document.getElementById('mercury').value, document.getElementById('mercury-unit')?.value),
                     }
                 };
                 
-                const response = await fetch('https://jal-sutra.vercel.app/add-data', {
+                const headers = { 'Content-Type': 'application/json' };
+                const token = localStorage.getItem('auth_token');
+                if (token) headers['Authorization'] = `Bearer ${token}`;
+                const response = await fetch('/add-data', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
+                    headers,
                     body: JSON.stringify(dataToSend)
                 });
 
@@ -155,6 +172,10 @@ document.addEventListener('DOMContentLoaded', () => {
         calculationForm.addEventListener('submit', (e) => {
             e.preventDefault();
             calculateIndices();
+        });
+        ['lead', 'cadmium', 'chromium', 'arsenic', 'mercury'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener('input', calculateIndices);
         });
     }
     const resetButton = document.getElementById('resetButton');
@@ -398,7 +419,7 @@ async function fetchAndDisplayWaterQuality(lat, lng, map) {
         
         try {
             // First, try to fetch data from API
-            const response = await fetch(`https://jal-sutra.vercel.app/api/readings/location?lat=${lat}&lng=${lng}&radius=1`);
+            const response = await fetch(`/api/readings/location?lat=${lat}&lng=${lng}&radius=1`);
             
             if (response.ok) {
                 data = await response.json();
@@ -411,7 +432,7 @@ async function fetchAndDisplayWaterQuality(lat, lng, map) {
             
             // Fallback: Load all readings data if not already cached
             if (!allReadingsData) {
-                const allReadingsResponse = await fetch('https://jal-sutra.vercel.app/api/readings');
+                const allReadingsResponse = await fetch('/api/readings');
                 if (allReadingsResponse.ok) {
                     const allReadingsResult = await allReadingsResponse.json();
                     allReadingsData = allReadingsResult.data || [];
@@ -674,7 +695,7 @@ function getReadingCoordinates(reading) {
 // Load existing data points on the map
 async function loadExistingDataPoints(map) {
     try {
-        const response = await fetch('https://jal-sutra.vercel.app/api/readings');
+        const response = await fetch('/api/readings');
         if (response.ok) {
             const data = await response.json();
             const readings = data.data || [];
@@ -705,10 +726,16 @@ async function loadExistingDataPoints(map) {
                             Date: ${reading.date}<br>
                             ${coordinateLabel} ${coordDisplay}<br>
                             ${coords.isExact ? '' : '<small class="text-gray-500">*Based on city location</small><br>'}
-                            <button onclick="showAreaData(${coords.lat}, ${coords.lng})" 
-                                    class="mt-2 px-2 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600">
-                                Show Area Data
-                            </button>
+                            <div class="mt-2 flex gap-2">
+                                <button onclick="showAreaData(${coords.lat}, ${coords.lng})" 
+                                        class="px-2 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600">
+                                    Show Area Data
+                                </button>
+                                <button onclick="showReadingDetails('${reading._id}')" 
+                                        class="px-2 py-1 bg-emerald-500 text-white rounded text-xs hover:bg-emerald-600">
+                                    View Details
+                                </button>
+                            </div>
                         </div>
                     `);
                 }
@@ -748,6 +775,62 @@ window.showAreaData = async function(lat, lng) {
     // Get the map instance (we need to store it globally)
     if (window.currentMap) {
         await fetchAndDisplayWaterQuality(lat, lng, window.currentMap);
+    }
+};
+
+window.showReadingDetails = async function(id) {
+    try {
+        const modal = document.getElementById('statsModal');
+        const statsContent = document.getElementById('statsContent');
+        statsContent.innerHTML = '<div class="p-6 text-center">Loading reading...</div>';
+        modal.classList.remove('hidden');
+
+        const res = await fetch(`/api/readings/${id}`);
+        if (!res.ok) throw new Error('Failed to fetch reading');
+        const { data } = await res.json();
+
+        const coord = getReadingCoordinates(data);
+        const coordLine = coord ? (coord.isExact 
+            ? `${coord.lat.toFixed(4)}, ${coord.lng.toFixed(4)}` 
+            : `~${coord.lat.toFixed(4)}, ${coord.lng.toFixed(4)} (approx.)`) : 'N/A';
+
+        statsContent.innerHTML = `
+          <div class="space-y-4">
+            <div class="flex justify-between">
+              <div>
+                <div class="text-sm text-gray-400">Sample ID</div>
+                <div class="text-white font-semibold">${data.sample_id}</div>
+              </div>
+              <div class="text-right">
+                <div class="text-sm text-gray-400">Date</div>
+                <div class="text-white font-semibold">${data.date}</div>
+              </div>
+            </div>
+            <div>
+              <div class="text-sm text-gray-400">Location</div>
+              <div class="text-white">${data.location}</div>
+            </div>
+            <div class="grid grid-cols-2 gap-2 text-sm text-gray-300">
+              <div>Latitude: <span class="text-white">${data.latitude ?? '-'}</span></div>
+              <div>Longitude: <span class="text-white">${data.longitude ?? '-'}</span></div>
+              <div>Coordinates: <span class="text-white">${coordLine}</span></div>
+              <div>Depth (m): <span class="text-white">${data.depth ?? 0}</span></div>
+            </div>
+            <div class="glassmorphism p-4 rounded">
+              <div class="font-semibold text-[var(--accent-color)] mb-2">Metal Concentrations (mg/L)</div>
+              <div class="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
+                <div>Lead (Pb): <span class="text-white">${(data.lead ?? 0).toFixed(4)}</span></div>
+                <div>Cadmium (Cd): <span class="text-white">${(data.cadmium ?? 0).toFixed(4)}</span></div>
+                <div>Chromium (Cr): <span class="text-white">${(data.chromium ?? 0).toFixed(4)}</span></div>
+                <div>Arsenic (As): <span class="text-white">${(data.arsenic ?? 0).toFixed(4)}</span></div>
+                <div>Mercury (Hg): <span class="text-white">${(data.mercury ?? 0).toFixed(4)}</span></div>
+              </div>
+            </div>
+          </div>
+        `;
+    } catch (e) {
+        const statsContent = document.getElementById('statsContent');
+        statsContent.innerHTML = `<div class="p-6 text-red-400">${e.message}</div>`;
     }
 };
 
